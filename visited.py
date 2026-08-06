@@ -172,7 +172,7 @@ with col_left:
             value=autofilled_province, 
             placeholder="e.g., Rayong, Pathum Thani"
         )
-        category = st.selectbox("Category", ["Beach", "Building", "Restaurant", "Park", "Museum", "Cafe", "Other"])
+        category = st.selectbox("Category", ["Beach", "Building", "Forest", "Restaurant", "Park", "Museum", "Cafe", "Other"])
         
         col_num, col_comp = st.columns([1, 2])
         with col_num:
@@ -284,7 +284,7 @@ if not data.empty:
         "Notes": st.column_config.TextColumn("Notes"),
         "Category": st.column_config.SelectboxColumn(
             "Category",
-            options=["Beach", "Building", "Restaurant", "Park", "Museum", "Cafe", "Other"],
+            options=["Beach", "Building", "Forest", "Restaurant", "Park", "Museum", "Cafe", "Other"],
             required=True
         ),
         "Visit Count": st.column_config.NumberColumn("Visit Count", min_value=1, step=1),
