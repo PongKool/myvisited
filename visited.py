@@ -24,6 +24,9 @@ THAI_PROVINCES = [
     "อำนาจเจริญ", "อุดรธานี", "อุตรดิตถ์", "อุทัยธานี", "อุบลราชธานี"
 ]
 
+# Add this near the top of visited.py
+CATEGORIES = ["Beach", "Building", "Forest", "Restaurant", "Park", "Museum", "Cafe", "Temple", "Other"]
+
 def get_thailand_time_str():
     return datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %I:%M:%S %p")
 
@@ -244,7 +247,7 @@ with col_left:
     if is_manual and province and province != "Unknown":
         prov_lat, prov_lon, _ = geocode_place(f"จังหวัด {province} Thailand")
 
-    category = st.selectbox("Category", ["Beach", "Building", "Forest", "Restaurant", "Park", "Museum", "Cafe", "Temple", "Other"])
+    category = st.selectbox("Category", CATEGORIES)
     
     col_num, col_comp = st.columns([1, 2])
     with col_num:
@@ -401,7 +404,7 @@ if not data.empty:
         "Notes": st.column_config.TextColumn("Notes"),
         "Category": st.column_config.SelectboxColumn(
             "Category",
-            options=["Beach", "Building", "Forest", "Restaurant", "Park", "Museum", "Cafe", "Temple", "Other"],
+            options=CATEGORIES,
             required=True
         ),
         "Visit Count": st.column_config.NumberColumn("Visit Count", min_value=1, step=1),
