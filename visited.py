@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 from streamlit_js_eval import get_geolocation
 
 DATA_FILE = "visited_places.csv"
+
 THAI_PROVINCES = [
     "Unknown", "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร",
     "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร",
@@ -24,8 +25,9 @@ THAI_PROVINCES = [
     "อำนาจเจริญ", "อุดรธานี", "อุตรดิตถ์", "อุทัยธานี", "อุบลราชธานี"
 ]
 
-# Add this near the top of visited.py
-CATEGORIES = ["Beach", "Building", "Forest", "Restaurant", "Park", "Museum", "Cafe", "Temple", "Other"]
+CATEGORIES = [
+    "Beach", "Building", "Forest", "Restaurant", "Park", "Museum", "Cafe", "Temple", "Other"
+]
 
 def get_thailand_time_str():
     return datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %I:%M:%S %p")
@@ -278,12 +280,13 @@ with col_left:
             )
             
             if lat and lon:
-                st.success(f"Logged '{place_name}' successfully!")
+                st.toast(f"📍 Logged '{place_name}' successfully!", icon="✅")
                 st.session_state.manual_lat = None
                 st.session_state.manual_lon = None
                 st.rerun()
             else:
-                st.warning(f"Logged '{place_name}', but couldn't locate it on the map.")
+                st.toast(f"⚠️ Logged '{place_name}', but couldn't locate it on the map.", icon="⚠️")
+                st.rerun()
 
 with col_right:
     data = load_data()
@@ -427,7 +430,7 @@ if not data.empty:
     with col_save:
         if st.button("💾 Save Changes", type="primary"):
             save_all_data(edited_df)
-            st.success("Changes saved successfully!")
+            st.toast("Changes saved successfully!", icon="💾")
             st.rerun()
     with col_export:
         csv_data = edited_df.to_csv(index=False).encode('utf-8')
