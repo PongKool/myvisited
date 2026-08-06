@@ -10,9 +10,9 @@ from streamlit_js_eval import get_geolocation
 
 DATA_FILE = "visited_places.csv"
 
-# Helper function to get the current timestamp in Thailand time (Asia/Bangkok)
+# Helper function to get current timestamp formatted in Thailand time (Asia/Bangkok)
 def get_thailand_time_str():
-    return datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %H:%M:%S")
+    return datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %I:%M:%S %p %Z")
 
 def load_data():
     if os.path.exists(DATA_FILE):
@@ -24,6 +24,20 @@ def load_data():
             
         if "Last Visited" not in df.columns:
             df["Last Visited"] = get_thailand_time_str()
+        else:
+            # Convert older recorded timestamps (without ICT tag) to Thailand time
+            def fix_timestamp(val):
+                if pd.isna(val) or "ICT" in str(val):
+                    return val
+                try:
+                    # Parse UTC string and convert to Asia/Bangkok timezone
+                    utc_dt = datetime.strptime(str(val), "%Y-%m-%d %H:%M:%S").replace(tzinfo=ZoneInfo("UTC"))
+                    bkk_dt = utc_dt.astimezone(ZoneInfo("Asia/Bangkok"))
+                    return bkk_dt.strftime("%Y-%m-%d %I:%M:%S %p %Z")
+                except Exception:
+                    return val
+
+            df["Last Visited"] = df["Last Visited"].apply(fix_timestamp)
 
         if "Visit Count" not in df.columns:
             df["Visit Count"] = 1
