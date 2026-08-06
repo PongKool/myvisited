@@ -221,7 +221,23 @@ with col_left:
         default_province = picked_prov
         st.info(f"📍 Location Picked on Map: ({clicked_lat:.4f}, {clicked_lon:.4f})")
 
-    # Province selection rendered first
+    # Place Name input
+    place_name = st.text_input(
+        "Place Name*", 
+        value=default_name, 
+        placeholder="e.g., Click on the map to select or type manually"
+    )
+
+    # Automatically look up location & province when Look with GPS is active or place name is entered
+    manual_lat, manual_lon, detected_province = None, None, ""
+    if place_name.strip():
+        manual_lat, manual_lon, detected_province = geocode_place(place_name)
+        if detected_province and detected_province != "Unknown":
+            default_province = detected_province
+            if look_gps and manual_lat and manual_lon:
+                st.info(f"📍 Location Found: {detected_province} ({manual_lat:.4f}, {manual_lon:.4f})")
+
+    # Province selection with auto-populated detected province
     prov_index = 0
     if default_province in THAI_PROVINCES:
         prov_index = THAI_PROVINCES.index(default_province)
@@ -235,22 +251,6 @@ with col_left:
     prov_lat, prov_lon = None, None
     if is_manual and province and province != "Unknown":
         prov_lat, prov_lon, _ = geocode_place(f"จังหวัด {province} Thailand")
-
-    # Place Name input rendered second
-    place_name = st.text_input(
-        "Place Name*", 
-        value=default_name, 
-        placeholder="e.g., Click on the map to select or type manually"
-    )
-
-    # Automatically geocode Place Name if Province is still Unknown or in Look with GPS mode
-    manual_lat, manual_lon, detected_province = None, None, ""
-    if place_name.strip() and (not default_province or default_province == "Unknown"):
-        manual_lat, manual_lon, detected_province = geocode_place(place_name)
-        if detected_province and detected_province != "Unknown":
-            default_province = detected_province
-            if look_gps and manual_lat and manual_lon:
-                st.info(f"📍 Location Found: {detected_province} ({manual_lat:.4f}, {manual_lon:.4f})")
 
     category = st.selectbox("Category", ["Beach", "Building", "Forest", "Restaurant", "Park", "Museum", "Cafe", "Other"])
     
