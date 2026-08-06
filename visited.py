@@ -167,6 +167,12 @@ def save_entry(place_name, province, category, notes, num_people, companions, la
 
 # Page Config
 st.set_page_config(page_title="Visited Places Log", page_icon="📍", layout="wide")
+
+# Display pending toast messages after a rerun
+if "toast_msg" in st.session_state:
+    st.toast(st.session_state.toast_msg["text"], icon=st.session_state.toast_msg["icon"])
+    del st.session_state.toast_msg
+
 st.title("📍 Visited Places Log & Map")
 st.write("Record and visualize all the amazing places you have visited on an interactive map.")
 
@@ -280,12 +286,18 @@ with col_left:
             )
             
             if lat and lon:
-                st.toast(f"📍 Logged '{place_name}' successfully!", icon="✅")
+                st.session_state.toast_msg = {
+                    "text": f"📍 Logged '{place_name}' successfully!",
+                    "icon": "✅"
+                }
                 st.session_state.manual_lat = None
                 st.session_state.manual_lon = None
                 st.rerun()
             else:
-                st.toast(f"⚠️ Logged '{place_name}', but couldn't locate it on the map.", icon="⚠️")
+                st.session_state.toast_msg = {
+                    "text": f"⚠️ Logged '{place_name}', but couldn't locate it on the map.",
+                    "icon": "⚠️"
+                }
                 st.rerun()
 
 with col_right:
@@ -430,7 +442,10 @@ if not data.empty:
     with col_save:
         if st.button("💾 Save Changes", type="primary"):
             save_all_data(edited_df)
-            st.toast("Changes saved successfully!", icon="💾")
+            st.session_state.toast_msg = {
+                "text": "Changes saved successfully!",
+                "icon": "💾"
+            }
             st.rerun()
     with col_export:
         csv_data = edited_df.to_csv(index=False).encode('utf-8')
