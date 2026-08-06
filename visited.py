@@ -5,9 +5,14 @@ import folium
 from streamlit_folium import st_folium
 from geopy.geocoders import Nominatim
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from streamlit_js_eval import get_geolocation
 
 DATA_FILE = "visited_places.csv"
+
+# Helper function to get the current timestamp in Thailand time (Asia/Bangkok)
+def get_thailand_time_str():
+    return datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %H:%M:%S")
 
 def load_data():
     if os.path.exists(DATA_FILE):
@@ -18,7 +23,7 @@ def load_data():
             df.rename(columns={"Date Visited": "Last Visited"}, inplace=True)
             
         if "Last Visited" not in df.columns:
-            df["Last Visited"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            df["Last Visited"] = get_thailand_time_str()
 
         if "Visit Count" not in df.columns:
             df["Visit Count"] = 1
@@ -40,21 +45,20 @@ def geocode_place(place_name):
 def save_entry(place_name, category, notes, lat=None, lon=None):
     df = load_data()
     clean_name = place_name.strip()
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now_str = get_thailand_time_str()
     
-    # Check if place already exists (case-insensitive)
+    # Check if place already exists (case-insensitive match)
     existing_index = df[df["Place Name"].str.strip().str.lower() == clean_name.lower()].index
     
     if not existing_index.empty:
         idx = existing_index[0]
-        # Update existing record: increment visit count and update timestamp/notes
+        # Update existing entry
         df.loc[idx, "Visit Count"] += 1
         df.loc[idx, "Last Visited"] = now_str
         df.loc[idx, "Category"] = category
         if notes:
             df.loc[idx, "Notes"] = notes
         
-        # Update coordinates if provided
         if lat is not None and lon is not None:
             df.loc[idx, "Latitude"] = lat
             df.loc[idx, "Longitude"] = lon
@@ -62,7 +66,7 @@ def save_entry(place_name, category, notes, lat=None, lon=None):
         final_lat = df.loc[idx, "Latitude"]
         final_lon = df.loc[idx, "Longitude"]
     else:
-        # Geocode new place if coordinates not supplied
+        # Create new entry
         if lat is None or lon is None:
             lat, lon = geocode_place(clean_name)
             
@@ -81,6 +85,7 @@ def save_entry(place_name, category, notes, lat=None, lon=None):
     df.to_csv(DATA_FILE, index=False)
     return final_lat, final_lon
 
+# Page Config
 st.set_page_config(page_title="Visited Places Log", page_icon="📍", layout="wide")
 
 st.title("📍 Visited Places Log & Map")
@@ -91,6 +96,7 @@ col_left, col_right = st.columns([1, 2])
 with col_left:
     st.subheader("Add / Log a Place")
     
+    # Acquire browser live geolocation
     loc = get_geolocation()
     
     current_lat, current_lon = None, None
