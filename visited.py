@@ -11,9 +11,13 @@ DATA_FILE = "visited_places.csv"
 
 def load_data():
     if os.path.exists(DATA_FILE):
-        return pd.read_csv(DATA_FILE)
+        df = pd.read_csv(DATA_FILE)
+        # Ensure Visit Count exists for older records
+        if "Visit Count" not in df.columns:
+            df["Visit Count"] = 1
+        return df
     else:
-        return pd.DataFrame(columns=["Place Name", "Category", "Notes", "Date Visited", "Latitude", "Longitude"])
+        return pd.DataFrame(columns=["Place Name", "Category", "Notes", "Last Visited", "Visit Count", "Latitude", "Longitude"])
 
 def geocode_place(place_name):
     try:
@@ -27,23 +31,47 @@ def geocode_place(place_name):
 
 def save_entry(place_name, category, notes, lat=None, lon=None):
     df = load_data()
+    clean_name = place_name.strip()
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    # Fall back to geocoding if coordinates were not captured via GPS
-    if lat is None or lon is None:
-        lat, lon = geocode_place(place_name)
+    # Check if place already exists (case-insensitive)
+    existing_index = df[df["Place Name"].str.strip().str.lower() == clean_name.lower()].index
+    
+    if not existing_index.empty:
+        idx = existing_index[0]
+        # Update existing record: increment visit count and update timestamp/notes
+        df.loc[idx, "Visit Count"] += 1
+        df.loc[idx, "Last Visited"] = now_str
+        df.loc[idx, "Category"] = category
+        if notes:
+            df.loc[idx, "Notes"] = notes
         
-    new_data = pd.DataFrame([{
-        "Place Name": place_name,
-        "Category": category,
-        "Notes": notes,
-        "Date Visited": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "Latitude": lat,
-        "Longitude": lon
-    }])
-    
-    df = pd.concat([df, new_data], ignore_index=True)
+        # Update coordinates if provided
+        if lat is not None and lon is not None:
+            df.loc[idx, "Latitude"] = lat
+            df.loc[idx, "Longitude"] = lon
+            
+        final_lat = df.loc[idx, "Latitude"]
+        final_lon = df.loc[idx, "Longitude"]
+    else:
+        # Geocode new place if coordinates not supplied
+        if lat is None or lon is None:
+            lat, lon = geocode_place(clean_name)
+            
+        new_data = pd.DataFrame([{
+            "Place Name": clean_name,
+            "Category": category,
+            "Notes": notes,
+            "Last Visited": now_str,
+            "Visit Count": 1,
+            "Latitude": lat,
+            "Longitude": lon
+        }])
+        df = pd.concat([df, new_data], ignore_index=True)
+        final_lat, final_lon = lat, lon
+
     df.to_csv(DATA_FILE, index=False)
-    return lat, lon
+    return final_lat, final_lon
 
 st.set_page_config(page_title="Visited Places Log", page_icon="📍", layout="wide")
 
@@ -53,9 +81,8 @@ st.write("Record and visualize all the amazing places you have visited on an int
 col_left, col_right = st.columns([1, 2])
 
 with col_left:
-    st.subheader("Add a New Place")
+    st.subheader("Add / Log a Place")
     
-    # Live GPS fetcher button outside the form
     loc = get_geolocation()
     
     current_lat, current_lon = None, None
@@ -69,7 +96,6 @@ with col_left:
         category = st.selectbox("Category", ["Beach", "Restaurant", "Park", "Museum", "Cafe", "Other"])
         notes = st.text_area("Notes / Memories", placeholder="e.g., Had great seafood, sunset was amazing!")
         
-        # Option to force using fetched GPS
         use_gps = st.checkbox("Use current GPS coordinates", value=bool(current_lat))
         
         submitted = st.form_submit_button("📌 Record Place")
@@ -84,9 +110,9 @@ with col_left:
                 lat, lon = save_entry(place_name, category, notes, lat=lat_to_save, lon=lon_to_save)
                 
                 if lat and lon:
-                    st.success(f"Recorded '{place_name}' successfully!")
+                    st.success(f"Logged '{place_name}' successfully!")
                 else:
-                    st.warning(f"Recorded '{place_name}', but couldn't locate it on the map.")
+                    st.warning(f"Logged '{place_name}', but couldn't locate it on the map.")
 
 with col_right:
     data = load_data()
@@ -99,11 +125,11 @@ with col_right:
         m = folium.Map(location=[center_lat, center_lon], zoom_start=6)
 
         for _, row in map_data.iterrows():
-            popup_text = f"<b>{row['Place Name']}</b><br><i>Category:</i> {row['Category']}<br><i>Notes:</i> {row['Notes']}"
+            popup_text = f"<b>{row['Place Name']}</b><br><i>Visits:</i> {row['Visit Count']}<br><i>Category:</i> {row['Category']}<br><i>Notes:</i> {row['Notes']}"
             folium.Marker(
                 location=[row["Latitude"], row["Longitude"]],
                 popup=folium.Popup(popup_text, max_width=250),
-                tooltip=row["Place Name"],
+                tooltip=f"{row['Place Name']} ({row['Visit Count']} visits)",
                 icon=folium.Icon(color="blue", icon="info-sign")
             ).add_to(m)
 
@@ -115,12 +141,13 @@ st.divider()
 
 st.subheader("📋 Memory Log")
 if not data.empty:
-    m_col1, m_col2 = st.columns(2)
-    m_col1.metric("Total Places Visited", len(data))
-    m_col2.metric("Mapped Locations", len(map_data))
+    m_col1, m_col2, m_col3 = st.columns(3)
+    m_col1.metric("Unique Places", len(data))
+    m_col2.metric("Total Visits Recorded", int(data["Visit Count"].sum()))
+    m_col3.metric("Mapped Locations", len(map_data))
 
     st.dataframe(
-        data.sort_values(by="Date Visited", ascending=False),
+        data.sort_values(by="Last Visited", ascending=False),
         use_container_width=True,
         hide_index=True
     )
