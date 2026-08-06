@@ -25,12 +25,10 @@ def load_data():
         if "Last Visited" not in df.columns:
             df["Last Visited"] = get_thailand_time_str()
         else:
-            # Convert older recorded timestamps (without ICT tag) to Thailand time
             def fix_timestamp(val):
                 if pd.isna(val) or "ICT" in str(val):
                     return val
                 try:
-                    # Parse UTC string and convert to Asia/Bangkok timezone
                     utc_dt = datetime.strptime(str(val), "%Y-%m-%d %H:%M:%S").replace(tzinfo=ZoneInfo("UTC"))
                     bkk_dt = utc_dt.astimezone(ZoneInfo("Asia/Bangkok"))
                     return bkk_dt.strftime("%Y-%m-%d %I:%M:%S %p %Z")
@@ -41,10 +39,20 @@ def load_data():
 
         if "Visit Count" not in df.columns:
             df["Visit Count"] = 1
+
+        # Handle backward compatibility for companion fields
+        if "Number of People" not in df.columns:
+            df["Number of People"] = 1
+
+        if "Companions" not in df.columns:
+            df["Companions"] = "Solo"
             
         return df
     else:
-        return pd.DataFrame(columns=["Place Name", "Category", "Notes", "Last Visited", "Visit Count", "Latitude", "Longitude"])
+        return pd.DataFrame(columns=[
+            "Place Name", "Category", "Notes", "Last Visited", 
+            "Visit Count", "Number of People", "Companions", "Latitude", "Longitude"
+        ])
 
 def geocode_place(place_name):
     try:
@@ -56,10 +64,11 @@ def geocode_place(place_name):
         pass
     return None, None
 
-def save_entry(place_name, category, notes, lat=None, lon=None):
+def save_entry(place_name, category, notes, num_people, companions, lat=None, lon=None):
     df = load_data()
     clean_name = place_name.strip()
     now_str = get_thailand_time_str()
+    companions_str = companions.strip() if companions.strip() else "Solo"
     
     # Check if place already exists (case-insensitive match)
     existing_index = df[df["Place Name"].str.strip().str.lower() == clean_name.lower()].index
@@ -70,6 +79,8 @@ def save_entry(place_name, category, notes, lat=None, lon=None):
         df.loc[idx, "Visit Count"] += 1
         df.loc[idx, "Last Visited"] = now_str
         df.loc[idx, "Category"] = category
+        df.loc[idx, "Number of People"] = num_people
+        df.loc[idx, "Companions"] = companions_str
         if notes:
             df.loc[idx, "Notes"] = notes
         
@@ -90,6 +101,8 @@ def save_entry(place_name, category, notes, lat=None, lon=None):
             "Notes": notes,
             "Last Visited": now_str,
             "Visit Count": 1,
+            "Number of People": num_people,
+            "Companions": companions_str,
             "Latitude": lat,
             "Longitude": lon
         }])
@@ -110,9 +123,7 @@ col_left, col_right = st.columns([1, 2])
 with col_left:
     st.subheader("Add / Log a Place")
     
-    # Acquire browser live geolocation
     loc = get_geolocation()
-    
     current_lat, current_lon = None, None
     if loc and 'coords' in loc:
         current_lat = loc['coords']['latitude']
@@ -122,6 +133,13 @@ with col_left:
     with st.form("add_place_form", clear_on_submit=True):
         place_name = st.text_input("Place Name*", placeholder="e.g., Rayong Beach")
         category = st.selectbox("Category", ["Beach", "Restaurant", "Park", "Museum", "Cafe", "Other"])
+        
+        col_num, col_comp = st.columns([1, 2])
+        with col_num:
+            num_people = st.number_input("Number of People", min_value=1, value=1, step=1)
+        with col_comp:
+            companions = st.text_input("Who went with you?", placeholder="e.g., Alice, Bob (Leave empty for Solo)")
+            
         notes = st.text_area("Notes / Memories", placeholder="e.g., Had great seafood, sunset was amazing!")
         
         use_gps = st.checkbox("Use current GPS coordinates", value=bool(current_lat))
@@ -135,7 +153,10 @@ with col_left:
                 lat_to_save = current_lat if use_gps else None
                 lon_to_save = current_lon if use_gps else None
                 
-                lat, lon = save_entry(place_name, category, notes, lat=lat_to_save, lon=lon_to_save)
+                lat, lon = save_entry(
+                    place_name, category, notes, num_people, companions, 
+                    lat=lat_to_save, lon=lon_to_save
+                )
                 
                 if lat and lon:
                     st.success(f"Logged '{place_name}' successfully!")
@@ -153,11 +174,17 @@ with col_right:
         m = folium.Map(location=[center_lat, center_lon], zoom_start=6)
 
         for _, row in map_data.iterrows():
-            popup_text = f"<b>{row['Place Name']}</b><br><i>Visits:</i> {row['Visit Count']}<br><i>Category:</i> {row['Category']}<br><i>Notes:</i> {row['Notes']}"
+            popup_text = (
+                f"<b>{row['Place Name']}</b><br>"
+                f"<i>Visits:</i> {row['Visit Count']}<br>"
+                f"<i>People:</i> {row['Number of People']} ({row['Companions']})<br>"
+                f"<i>Category:</i> {row['Category']}<br>"
+                f"<i>Notes:</i> {row['Notes']}"
+            )
             folium.Marker(
                 location=[row["Latitude"], row["Longitude"]],
                 popup=folium.Popup(popup_text, max_width=250),
-                tooltip=f"{row['Place Name']} ({row['Visit Count']} visits)",
+                tooltip=f"{row['Place Name']} ({row['Number of People']} people)",
                 icon=folium.Icon(color="blue", icon="info-sign")
             ).add_to(m)
 
@@ -179,7 +206,14 @@ if not data.empty:
         use_container_width=True,
         hide_index=True
     )
-    
+
+    # Detailed expander view for companions per place
+    st.markdown("### 👥 View Companions per Location")
+    selected_place = st.selectbox("Select a place to see who visited with you:", data["Place Name"].unique())
+    if selected_place:
+        place_info = data[data["Place Name"] == selected_place].iloc[0]
+        st.info(f"**{selected_place}** was visited by **{place_info['Number of People']}** person(s): **{place_info['Companions']}**")
+
     csv_data = data.to_csv(index=False).encode('utf-8')
     st.download_button(
         label="📥 Export Log as CSV",
