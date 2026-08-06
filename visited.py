@@ -263,22 +263,55 @@ if not data.empty:
         "Visit Count", "Number of People", "Companions", "Latitude", "Longitude"
     ]
 
-    # Interactive table view with header click sorting
-    st.dataframe(
-        data,
+    # 1. Sorting Controls
+    col_sort_field, col_sort_dir = st.columns([2, 1])
+    with col_sort_field:
+        sort_by_col = st.selectbox("Sort table by:", COLUMN_ORDER, index=0)
+    with col_sort_dir:
+        sort_ascending = st.radio("Direction:", ["Ascending", "Descending"], horizontal=True) == "Ascending"
+
+    # 2. Sort Dataframe
+    sorted_data = data.sort_values(by=sort_by_col, ascending=sort_ascending)
+
+    column_config = {
+        "Category": st.column_config.SelectboxColumn(
+            "Category",
+            options=["Beach", "Restaurant", "Park", "Museum", "Cafe", "Other"],
+            required=True
+        ),
+        "Visit Count": st.column_config.NumberColumn("Visit Count", min_value=1, step=1),
+        "Number of People": st.column_config.NumberColumn("Number of People", min_value=1, step=1),
+        "Latitude": st.column_config.NumberColumn("Latitude", format="%.6f"),
+        "Longitude": st.column_config.NumberColumn("Longitude", format="%.6f"),
+    }
+
+    # 3. Editable Table with Dynamic Key for Instant Refresh
+    edited_df = st.data_editor(
+        sorted_data,
+        num_rows="dynamic",
+        column_config=column_config,
         column_order=COLUMN_ORDER,
         use_container_width=True,
-        hide_index=True
+        hide_index=True,
+        key=f"editor_{sort_by_col}_{sort_ascending}"
     )
 
-    # Export CSV Button
-    csv_data = data.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        label="📥 Export Log as CSV",
-        data=csv_data,
-        file_name="my_visited_places.csv",
-        mime="text/csv"
-    )
+    # 4. Save & Export Buttons
+    col_save, col_export = st.columns([1, 3])
+    with col_save:
+        if st.button("💾 Save Changes", type="primary"):
+            save_all_data(edited_df)
+            st.success("Changes saved successfully!")
+            st.rerun()
+
+    with col_export:
+        csv_data = edited_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Export Log as CSV",
+            data=csv_data,
+            file_name="my_visited_places.csv",
+            mime="text/csv"
+        )
 
     st.markdown("### 👥 View Companions per Location")
     selected_place = st.selectbox("Select a place to see who visited with you:", data["Place Name"].dropna().unique())
