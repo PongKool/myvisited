@@ -10,9 +10,9 @@ from streamlit_js_eval import get_geolocation
 
 DATA_FILE = "visited_places.csv"
 
-# Helper function to get current timestamp formatted in Thailand time (Asia/Bangkok)
+# Helper function to get current timestamp formatted in Thailand time without timezone offset (+07)
 def get_thailand_time_str():
-    return datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %I:%M:%S %p %Z")
+    return datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %I:%M:%S %p")
 
 def load_data():
     if os.path.exists(DATA_FILE):
@@ -24,14 +24,18 @@ def load_data():
             df["Last Visited"] = get_thailand_time_str()
         else:
             def fix_timestamp(val):
-                if pd.isna(val) or "ICT" in str(val):
+                if pd.isna(val):
                     return val
+                val_str = str(val)
+                # Strip out timezone suffixes like +07, +0700, +07:00, ICT, UTC, etc.
+                for tz_str in ["+07:00", "+0700", "+07", "ICT", "UTC"]:
+                    val_str = val_str.replace(tz_str, "").strip()
                 try:
-                    utc_dt = datetime.strptime(str(val), "%Y-%m-%d %H:%M:%S").replace(tzinfo=ZoneInfo("UTC"))
+                    utc_dt = datetime.strptime(val_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=ZoneInfo("UTC"))
                     bkk_dt = utc_dt.astimezone(ZoneInfo("Asia/Bangkok"))
-                    return bkk_dt.strftime("%Y-%m-%d %I:%M:%S %p %Z")
+                    return bkk_dt.strftime("%Y-%m-%d %I:%M:%S %p")
                 except Exception:
-                    return val
+                    return val_str
             df["Last Visited"] = df["Last Visited"].apply(fix_timestamp)
 
         if "Visit Count" not in df.columns:
@@ -278,7 +282,7 @@ if not data.empty:
         data,
         num_rows="dynamic",
         column_config=column_config,
-        column_order=COLUMN_ORDER,  # Enforces fixed column positions
+        column_order=COLUMN_ORDER,
         use_container_width=True,
         hide_index=True,
         key="memory_log_editor"
