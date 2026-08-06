@@ -362,29 +362,56 @@ if not data.empty:
             mime="text/csv"
         )
 
-    st.markdown("### 👥 View Visit Details & Companions per Location")
+    st.markdown("### 👥 View Visit Details & Companions")
     
-    unique_places = sorted(edited_df["Place Name"].dropna().unique())
-    selected_place = st.selectbox("Select a place to inspect visits:", unique_places)
+    view_mode = st.radio("Inspect visits by:", ["By Location", "By Province"], horizontal=True)
 
-    if selected_place:
-        place_visits = edited_df[edited_df["Place Name"] == selected_place].sort_values(by="Last Visited", ascending=False)
-        
-        if len(place_visits) > 1:
-            visit_options = [
-                f"Visit #{row['Visit Count']} - {row['Last Visited']} ({row['Number of People']} people: {row['Companions']})"
-                for _, row in place_visits.iterrows()
-            ]
-            selected_visit_label = st.selectbox("Select specific visit record:", visit_options)
+    if view_mode == "By Location":
+        unique_places = sorted(edited_df["Place Name"].dropna().unique())
+        selected_place = st.selectbox("Select a place to inspect visits:", unique_places)
+
+        if selected_place:
+            place_visits = edited_df[edited_df["Place Name"] == selected_place].sort_values(by="Last Visited", ascending=False)
             
-            selected_index = visit_options.index(selected_visit_label)
-            chosen_visit = place_visits.iloc[selected_index]
-        else:
-            chosen_visit = place_visits.iloc[0]
+            if len(place_visits) > 1:
+                visit_options = [
+                    f"Visit #{row['Visit Count']} - {row['Last Visited']} ({row['Number of People']} people: {row['Companions']})"
+                    for _, row in place_visits.iterrows()
+                ]
+                selected_visit_label = st.selectbox("Select specific visit record:", visit_options)
+                selected_index = visit_options.index(selected_visit_label)
+                chosen_visit = place_visits.iloc[selected_index]
+            else:
+                chosen_visit = place_visits.iloc[0]
 
-        st.info(
-            f"📍 **{chosen_visit['Place Name']}** ({chosen_visit['Province']})\n\n"
-            f"🗓️ **Date:** {chosen_visit['Last Visited']}\n\n"
-            f"👥 **Group Size:** {chosen_visit['Number of People']} person(s) (**Companions:** {chosen_visit['Companions']})\n\n"
-            f"📝 **Notes:** {chosen_visit['Notes'] if pd.notna(chosen_visit['Notes']) and chosen_visit['Notes'] else 'No notes added'}"
-        )
+            st.info(
+                f"📍 **{chosen_visit['Place Name']}** ({chosen_visit['Province']})\n\n"
+                f"🗓️ **Date:** {chosen_visit['Last Visited']}\n\n"
+                f"👥 **Group Size:** {chosen_visit['Number of People']} person(s) (**Companions:** {chosen_visit['Companions']})\n\n"
+                f"📝 **Notes:** {chosen_visit['Notes'] if pd.notna(chosen_visit['Notes']) and chosen_visit['Notes'] else 'No notes added'}"
+            )
+
+    else:
+        unique_provinces = sorted(edited_df["Province"].dropna().unique())
+        selected_province = st.selectbox("Select a province to inspect visits:", unique_provinces)
+
+        if selected_province:
+            prov_visits = edited_df[edited_df["Province"] == selected_province].sort_values(by="Last Visited", ascending=False)
+            
+            st.success(f"Found **{len(prov_visits)}** visit record(s) in **{selected_province}** across **{prov_visits['Place Name'].nunique()}** unique place(s).")
+            
+            visit_options = [
+                f"{row['Place Name']} - Visit #{row['Visit Count']} on {row['Last Visited']} ({row['Number of People']} people: {row['Companions']})"
+                for _, row in prov_visits.iterrows()
+            ]
+            selected_visit_label = st.selectbox("Select specific visit record in this province:", visit_options)
+            selected_index = visit_options.index(selected_visit_label)
+            chosen_visit = prov_visits.iloc[selected_index]
+
+            st.info(
+                f"📍 **{chosen_visit['Place Name']}** ({chosen_visit['Province']})\n\n"
+                f"🏷️ **Category:** {chosen_visit['Category']}\n\n"
+                f"🗓️ **Date:** {chosen_visit['Last Visited']}\n\n"
+                f"👥 **Group Size:** {chosen_visit['Number of People']} person(s) (**Companions:** {chosen_visit['Companions']})\n\n"
+                f"📝 **Notes:** {chosen_visit['Notes'] if pd.notna(chosen_visit['Notes']) and chosen_visit['Notes'] else 'No notes added'}"
+            )
