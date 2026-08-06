@@ -269,10 +269,16 @@ if not data.empty:
         "Longitude": st.column_config.NumberColumn("Longitude", format="%.6f"),
     }
 
+    COLUMN_ORDER = [
+        "Place Name", "Province", "Category", "Notes", "Last Visited", 
+        "Visit Count", "Number of People", "Companions", "Latitude", "Longitude"
+    ]
+
     edited_df = st.data_editor(
         data,
-        num_rows="dynamic",  # Allows adding and deleting rows
+        num_rows="dynamic",
         column_config=column_config,
+        column_order=COLUMN_ORDER,  # Enforces fixed column positions
         use_container_width=True,
         hide_index=True,
         key="memory_log_editor"
