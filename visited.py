@@ -52,6 +52,11 @@ def load_data():
         else:
             df["Province"] = df["Province"].apply(clean_province_name)
 
+        if "Notes" not in df.columns:
+            df["Notes"] = ""
+        else:
+            df["Notes"] = df["Notes"].fillna("")
+
         # Ensure 'No.' column exists and is numbered 1, 2, 3...
         df["No."] = range(1, len(df) + 1)
         return df
@@ -62,7 +67,6 @@ def load_data():
         ])
 
 def save_all_data(df):
-    # Recalculate 'No.' sequentially before saving
     df_to_save = df.copy()
     if "No." in df_to_save.columns:
         df_to_save["No."] = range(1, len(df_to_save) + 1)
@@ -123,7 +127,7 @@ def save_entry(place_name, province, category, notes, num_people, companions, la
         "Place Name": clean_name,
         "Province": clean_province,
         "Category": category,
-        "Notes": notes,
+        "Notes": notes if notes else "",
         "Last Visited": now_str,
         "Visit Count": visit_number,
         "Number of People": num_people,
@@ -277,6 +281,7 @@ if not data.empty:
 
     column_config = {
         "No.": st.column_config.NumberColumn("No.", min_value=1, step=1, disabled=True),
+        "Notes": st.column_config.TextColumn("Notes"),
         "Category": st.column_config.SelectboxColumn(
             "Category",
             options=["Beach", "Building", "Restaurant", "Park", "Museum", "Cafe", "Other"],
