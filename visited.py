@@ -12,9 +12,17 @@ DATA_FILE = "visited_places.csv"
 def load_data():
     if os.path.exists(DATA_FILE):
         df = pd.read_csv(DATA_FILE)
-        # Ensure Visit Count exists for older records
+        
+        # Handle backward compatibility with older CSV column names
+        if "Date Visited" in df.columns and "Last Visited" not in df.columns:
+            df.rename(columns={"Date Visited": "Last Visited"}, inplace=True)
+            
+        if "Last Visited" not in df.columns:
+            df["Last Visited"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         if "Visit Count" not in df.columns:
             df["Visit Count"] = 1
+            
         return df
     else:
         return pd.DataFrame(columns=["Place Name", "Category", "Notes", "Last Visited", "Visit Count", "Latitude", "Longitude"])
