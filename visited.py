@@ -17,11 +17,9 @@ def get_thailand_time_str():
 def load_data():
     if os.path.exists(DATA_FILE):
         df = pd.read_csv(DATA_FILE)
-        
         # Handle backward compatibility with older CSV column names
         if "Date Visited" in df.columns and "Last Visited" not in df.columns:
             df.rename(columns={"Date Visited": "Last Visited"}, inplace=True)
-            
         if "Last Visited" not in df.columns:
             df["Last Visited"] = get_thailand_time_str()
         else:
@@ -34,22 +32,17 @@ def load_data():
                     return bkk_dt.strftime("%Y-%m-%d %I:%M:%S %p %Z")
                 except Exception:
                     return val
-
             df["Last Visited"] = df["Last Visited"].apply(fix_timestamp)
 
         if "Visit Count" not in df.columns:
             df["Visit Count"] = 1
-
         if "Number of People" not in df.columns:
             df["Number of People"] = 1
-
         if "Companions" not in df.columns:
             df["Companions"] = "Solo"
-
         # Handle backward compatibility for Province
         if "Province" not in df.columns:
             df["Province"] = "Unknown"
-            
         return df
     else:
         return pd.DataFrame(columns=[
@@ -78,14 +71,14 @@ def reverse_geocode(lat, lon):
         if location and location.raw.get("address"):
             address = location.raw["address"]
             name = (
-                address.get("facility") or 
-                address.get("office") or 
-                address.get("amenity") or 
-                address.get("tourism") or 
-                address.get("building") or 
-                address.get("leisure") or 
-                address.get("shop") or 
-                address.get("road") or 
+                address.get("facility") or
+                address.get("office") or
+                address.get("amenity") or
+                address.get("tourism") or
+                address.get("building") or
+                address.get("leisure") or
+                address.get("shop") or
+                address.get("road") or
                 location.address.split(",")[0]
             )
             province = address.get("state") or address.get("province") or "Unknown"
@@ -100,10 +93,10 @@ def save_entry(place_name, province, category, notes, num_people, companions, la
     clean_province = province.strip() if province.strip() else "Unknown"
     now_str = get_thailand_time_str()
     companions_str = companions.strip() if companions.strip() else "Solo"
-    
+
     # Check if place already exists (case-insensitive match)
     existing_index = df[df["Place Name"].str.strip().str.lower() == clean_name.lower()].index
-    
+
     if not existing_index.empty:
         idx = existing_index[0]
         # Update existing entry
@@ -115,11 +108,9 @@ def save_entry(place_name, province, category, notes, num_people, companions, la
         df.loc[idx, "Companions"] = companions_str
         if notes:
             df.loc[idx, "Notes"] = notes
-        
         if lat is not None and lon is not None:
             df.loc[idx, "Latitude"] = lat
             df.loc[idx, "Longitude"] = lon
-            
         final_lat = df.loc[idx, "Latitude"]
         final_lon = df.loc[idx, "Longitude"]
     else:
@@ -128,7 +119,7 @@ def save_entry(place_name, province, category, notes, num_people, companions, la
             lat, lon, detected_province = geocode_place(clean_name)
             if clean_province == "Unknown" and detected_province != "Unknown":
                 clean_province = detected_province
-            
+
         new_data = pd.DataFrame([{
             "Place Name": clean_name,
             "Province": clean_province,
@@ -160,11 +151,10 @@ with col_left:
     
     # Acquire browser live geolocation
     loc = get_geolocation()
-    
     current_lat, current_lon = None, None
     autofilled_name = ""
     autofilled_province = ""
-    
+
     if loc and 'coords' in loc:
         current_lat = loc['coords']['latitude']
         current_lon = loc['coords']['longitude']
@@ -193,9 +183,8 @@ with col_left:
             companions = st.text_input("Who went with you?", placeholder="e.g., Alice, Bob (Leave empty for Solo)")
             
         notes = st.text_area("Notes / Memories", placeholder="e.g., Had great seafood, sunset was amazing!")
-        
         use_gps = st.checkbox("Use current GPS coordinates", value=bool(current_lat))
-        
+
         submitted = st.form_submit_button("📌 Record Place")
 
         if submitted:
@@ -204,12 +193,12 @@ with col_left:
             else:
                 lat_to_save = current_lat if use_gps else None
                 lon_to_save = current_lon if use_gps else None
-                
+
                 lat, lon = save_entry(
-                    place_name, province, category, notes, num_people, companions, 
+                    place_name, province, category, notes, num_people, companions,
                     lat=lat_to_save, lon=lon_to_save
                 )
-                
+
                 if lat and lon:
                     st.success(f"Logged '{place_name}' successfully!")
                 else:
@@ -219,30 +208,49 @@ with col_right:
     data = load_data()
     st.subheader("🗺️ Map View")
     map_data = data.dropna(subset=["Latitude", "Longitude"])
-    
-    if not map_data.empty:
+
+    # Determine initial map center and zoom level based on GPS check or existing data
+    if use_gps and current_lat is not None and current_lon is not None:
+        center_lat, center_lon = current_lat, current_lon
+        zoom_level = 13
+    elif not map_data.empty:
         center_lat = map_data["Latitude"].mean()
         center_lon = map_data["Longitude"].mean()
-        m = folium.Map(location=[center_lat, center_lon], zoom_start=6)
-
-        for _, row in map_data.iterrows():
-            popup_text = (
-                f"<b>{row['Place Name']}</b> ({row['Province']})<br>"
-                f"<i>Visits:</i> {row['Visit Count']}<br>"
-                f"<i>People:</i> {row['Number of People']} ({row['Companions']})<br>"
-                f"<i>Category:</i> {row['Category']}<br>"
-                f"<i>Notes:</i> {row['Notes']}"
-            )
-            folium.Marker(
-                location=[row["Latitude"], row["Longitude"]],
-                popup=folium.Popup(popup_text, max_width=250),
-                tooltip=f"{row['Place Name']}, {row['Province']}",
-                icon=folium.Icon(color="blue", icon="info-sign")
-            ).add_to(m)
-
-        st_folium(m, width="100%", height=400)
+        zoom_level = 6
     else:
-        st.info("No places with valid map coordinates to display yet. Add a location above!")
+        center_lat, center_lon = 13.73671, 100.52318  # Default Thailand coordinates
+        zoom_level = 6
+
+    # Create Folium Map
+    m = folium.Map(location=[center_lat, center_lon], zoom_start=zoom_level)
+
+    # Plot recorded locations
+    for _, row in map_data.iterrows():
+        popup_text = (
+            f"<b>{row['Place Name']}</b> ({row['Province']})<br>"
+            f"<i>Visits:</i> {row['Visit Count']}<br>"
+            f"<i>People:</i> {row['Number of People']} ({row['Companions']})<br>"
+            f"<i>Category:</i> {row['Category']}<br>"
+            f"<i>Notes:</i> {row['Notes']}"
+        )
+        folium.Marker(
+            location=[row["Latitude"], row["Longitude"]],
+            popup=folium.Popup(popup_text, max_width=250),
+            tooltip=f"{row['Place Name']}, {row['Province']}",
+            icon=folium.Icon(color="blue", icon="info-sign")
+        ).add_to(m)
+
+    # Plot red GPS location pin when enabled
+    if use_gps and current_lat is not None and current_lon is not None:
+        folium.Marker(
+            location=[current_lat, current_lon],
+            popup="📍 You are here (Current GPS)",
+            tooltip="Current GPS Location",
+            icon=folium.Icon(color="red", icon="user", prefix="fa")
+        ).add_to(m)
+
+    # Render map component with dynamic key
+    st_folium(m, width="100%", height=400, key=f"visited_map_{use_gps}_{current_lat}_{current_lon}")
 
 st.divider()
 
@@ -255,8 +263,8 @@ if not data.empty:
     m_col4.metric("Mapped Locations", len(map_data))
 
     st.dataframe(
-        data.sort_values(by="Last Visited", ascending=False),
-        use_container_width=True,
+        data.sort_values(by="Last Visited", ascending=False), 
+        use_container_width=True, 
         hide_index=True
     )
 
