@@ -19,6 +19,15 @@ def clean_province_name(province_str):
     cleaned = str(province_str).replace("จังหวัด", "").strip()
     return cleaned if cleaned else "Unknown"
 
+def assign_location_numbers(df):
+    group_cols = ["Place Name", "Province", "Category", "Latitude", "Longitude"]
+    # Check if required columns exist before grouping
+    if all(col in df.columns for col in group_cols):
+        df["No."] = df.groupby(group_cols, sort=False).ngroup() + 1
+    else:
+        df["No."] = range(1, len(df) + 1)
+    return df
+
 def load_data():
     if os.path.exists(DATA_FILE):
         df = pd.read_csv(DATA_FILE)
@@ -57,7 +66,8 @@ def load_data():
         else:
             df["Notes"] = df["Notes"].fillna("")
 
-        df["No."] = range(1, len(df) + 1)
+        # Assign same 'No.' to duplicate locations (matching Place, Province, Category, Lat, Lon)
+        df = assign_location_numbers(df)
         return df
     else:
         return pd.DataFrame(columns=[
@@ -67,8 +77,7 @@ def load_data():
 
 def save_all_data(df):
     df_to_save = df.copy()
-    if "No." in df_to_save.columns:
-        df_to_save["No."] = range(1, len(df_to_save) + 1)
+    df_to_save = assign_location_numbers(df_to_save)
     df_to_save.to_csv(DATA_FILE, index=False)
 
 def geocode_place(place_name):
@@ -123,7 +132,7 @@ def save_entry(place_name, province, category, notes, num_people, companions, la
     visit_number = len(existing_match) + 1
 
     new_entry = pd.DataFrame([{
-        "No.": len(df) + 1,
+        "No.": 1,  # Temporary placeholder; recalculated below
         "Place Name": clean_name,
         "Province": clean_province,
         "Category": category,
@@ -161,7 +170,6 @@ with col_left:
         st.success(f"GPS Acquired: {current_lat:.4f}, {current_lon:.4f}")
         autofilled_name, autofilled_province = reverse_geocode(current_lat, current_lon)
 
-    # Place form inputs outside st.form to allow real-time look-up on typing
     col_chk1, col_chk2 = st.columns(2)
     with col_chk1:
         use_gps = st.checkbox("Use current GPS", value=bool(current_lat))
@@ -177,7 +185,6 @@ with col_left:
         placeholder="e.g., น้ำตกเจ็ดคด"
     )
 
-    # Live Geocoding for "Look with GPS"
     manual_lat, manual_lon, detected_province = None, None, ""
     if look_gps and place_name.strip():
         manual_lat, manual_lon, detected_province = geocode_place(place_name)
@@ -228,7 +235,6 @@ with col_right:
     st.subheader("🗺️ Map View")
     map_data = data.dropna(subset=["Latitude", "Longitude"])
 
-    # Map centering logic: Prioritize 'Look with GPS' found coords, then live GPS position
     if look_gps and manual_lat is not None and manual_lon is not None:
         center_lat, center_lon = manual_lat, manual_lon
         zoom_level = 13
@@ -271,7 +277,6 @@ with col_right:
             icon=folium.Icon(color="blue", icon="info-sign")
         ).add_to(m)
 
-    # Highlight manual Look-up location pin in Green
     if look_gps and manual_lat is not None and manual_lon is not None:
         folium.Marker(
             location=[manual_lat, manual_lon],
@@ -280,7 +285,6 @@ with col_right:
             icon=folium.Icon(color="green", icon="search", prefix="fa")
         ).add_to(m)
 
-    # Highlight Live GPS position pin in Red
     if use_gps and current_lat is not None and current_lon is not None:
         folium.Marker(
             location=[current_lat, current_lon],
