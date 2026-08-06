@@ -244,7 +244,7 @@ with col_left:
     if is_manual and province and province != "Unknown":
         prov_lat, prov_lon, _ = geocode_place(f"จังหวัด {province} Thailand")
 
-    category = st.selectbox("Category", ["Beach", "Building", "Forest", "Restaurant", "Park", "Museum", "Cafe", "Other"])
+    category = st.selectbox("Category", ["Beach", "Building", "Forest", "Restaurant", "Park", "Museum", "Cafe", "Temple", "Other"])
     
     col_num, col_comp = st.columns([1, 2])
     with col_num:
@@ -401,7 +401,7 @@ if not data.empty:
         "Notes": st.column_config.TextColumn("Notes"),
         "Category": st.column_config.SelectboxColumn(
             "Category",
-            options=["Beach", "Building", "Forest", "Restaurant", "Park", "Museum", "Cafe", "Other"],
+            options=["Beach", "Building", "Forest", "Restaurant", "Park", "Museum", "Cafe", "Temple", "Other"],
             required=True
         ),
         "Visit Count": st.column_config.NumberColumn("Visit Count", min_value=1, step=1),
