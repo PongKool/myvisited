@@ -246,10 +246,10 @@ with col_left:
     else:
         province = st.text_input("Province", value=default_province, placeholder="e.g., Rayong, Pathum Thani")
 
-    # Geocode selected province in Manual Mode to pan map automatically
+    # Geocode selected province in Manual Mode using clean query
     prov_lat, prov_lon = None, None
     if is_manual and province and province != "Unknown":
-        prov_lat, prov_lon, _ = geocode_place(f"จังหวัด{province}")
+        prov_lat, prov_lon, _ = geocode_place(f"{province}, Thailand")
 
     category = st.selectbox("Category", ["Beach", "Building", "Forest", "Restaurant", "Park", "Museum", "Cafe", "Other"])
     
@@ -305,7 +305,7 @@ with col_right:
         zoom_level = 13
     elif is_manual and prov_lat is not None and prov_lon is not None:
         center_lat, center_lon = prov_lat, prov_lon
-        zoom_level = 10
+        zoom_level = 9
     elif not map_data.empty:
         center_lat = map_data["Latitude"].mean()
         center_lon = map_data["Longitude"].mean()
