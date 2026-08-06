@@ -13,6 +13,12 @@ DATA_FILE = "visited_places.csv"
 def get_thailand_time_str():
     return datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %I:%M:%S %p")
 
+def clean_province_name(province_str):
+    if not province_str or pd.isna(province_str):
+        return "Unknown"
+    cleaned = str(province_str).replace("จังหวัด", "").strip()
+    return cleaned if cleaned else "Unknown"
+
 def load_data():
     if os.path.exists(DATA_FILE):
         df = pd.read_csv(DATA_FILE)
@@ -43,15 +49,24 @@ def load_data():
             df["Companions"] = "Solo"
         if "Province" not in df.columns:
             df["Province"] = "Unknown"
+        else:
+            df["Province"] = df["Province"].apply(clean_province_name)
+
+        # Ensure 'No.' column exists and is numbered 1, 2, 3...
+        df["No."] = range(1, len(df) + 1)
         return df
     else:
         return pd.DataFrame(columns=[
-            "Place Name", "Province", "Category", "Notes", "Last Visited", 
+            "No.", "Place Name", "Province", "Category", "Notes", "Last Visited", 
             "Visit Count", "Number of People", "Companions", "Latitude", "Longitude"
         ])
 
 def save_all_data(df):
-    df.to_csv(DATA_FILE, index=False)
+    # Recalculate 'No.' sequentially before saving
+    df_to_save = df.copy()
+    if "No." in df_to_save.columns:
+        df_to_save["No."] = range(1, len(df_to_save) + 1)
+    df_to_save.to_csv(DATA_FILE, index=False)
 
 def geocode_place(place_name):
     try:
@@ -59,8 +74,8 @@ def geocode_place(place_name):
         location = geolocator.geocode(place_name, timeout=10, addressdetails=True)
         if location:
             address = location.raw.get("address", {})
-            province = address.get("state") or address.get("province") or "Unknown"
-            return location.latitude, location.longitude, province
+            raw_province = address.get("state") or address.get("province") or "Unknown"
+            return location.latitude, location.longitude, clean_province_name(raw_province)
     except Exception:
         pass
     return None, None, "Unknown"
@@ -76,8 +91,8 @@ def reverse_geocode(lat, lon):
                 address.get("tourism") or address.get("building") or address.get("leisure") or
                 address.get("shop") or address.get("road") or location.address.split(",")[0]
             )
-            province = address.get("state") or address.get("province") or "Unknown"
-            return name, province
+            raw_province = address.get("state") or address.get("province") or "Unknown"
+            return name, clean_province_name(raw_province)
     except Exception:
         pass
     return "", "Unknown"
@@ -85,28 +100,26 @@ def reverse_geocode(lat, lon):
 def save_entry(place_name, province, category, notes, num_people, companions, lat=None, lon=None):
     df = load_data()
     clean_name = place_name.strip()
-    clean_province = province.strip() if province.strip() else "Unknown"
+    clean_province = clean_province_name(province)
     now_str = get_thailand_time_str()
     companions_str = companions.strip() if companions.strip() else "Solo"
 
-    # Reuse existing coordinates if place was previously mapped
     existing_match = df[df["Place Name"].str.strip().str.lower() == clean_name.lower()]
     if (lat is None or lon is None) and not existing_match.empty:
         lat = existing_match.iloc[0]["Latitude"]
         lon = existing_match.iloc[0]["Longitude"]
         if clean_province == "Unknown":
-            clean_province = existing_match.iloc[0]["Province"]
+            clean_province = clean_province_name(existing_match.iloc[0]["Province"])
 
-    # Geocode if location still missing
     if lat is None or lon is None:
         lat, lon, detected_province = geocode_place(clean_name)
         if clean_province == "Unknown" and detected_province != "Unknown":
             clean_province = detected_province
 
-    # Calculate total visit sequence for this place
     visit_number = len(existing_match) + 1
 
     new_entry = pd.DataFrame([{
+        "No.": len(df) + 1,
         "Place Name": clean_name,
         "Province": clean_province,
         "Category": category,
@@ -203,7 +216,6 @@ with col_right:
 
     m = folium.Map(location=[center_lat, center_lon], zoom_start=zoom_level)
 
-    # Consolidate map markers per place so markers don't overlap duplicates
     unique_map_places = map_data.groupby("Place Name").agg({
         "Latitude": "first",
         "Longitude": "first",
@@ -251,7 +263,7 @@ if not data.empty:
     m_col4.metric("Mapped Locations", unique_map_places["Place Name"].nunique() if not unique_map_places.empty else 0)
 
     COLUMN_ORDER = [
-        "Place Name", "Province", "Category", "Notes", "Last Visited", 
+        "No.", "Place Name", "Province", "Category", "Notes", "Last Visited", 
         "Visit Count", "Number of People", "Companions", "Latitude", "Longitude"
     ]
 
@@ -264,6 +276,7 @@ if not data.empty:
     sorted_data = data.sort_values(by=sort_by_col, ascending=sort_ascending)
 
     column_config = {
+        "No.": st.column_config.NumberColumn("No.", min_value=1, step=1, disabled=True),
         "Category": st.column_config.SelectboxColumn(
             "Category",
             options=["Beach", "Building", "Restaurant", "Park", "Museum", "Cafe", "Other"],
