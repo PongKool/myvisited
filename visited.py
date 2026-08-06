@@ -258,56 +258,32 @@ if not data.empty:
     m_col3.metric("Total Visits Recorded", int(data["Visit Count"].sum()))
     m_col4.metric("Mapped Locations", len(map_data))
 
-    # Editable Dataframe Section
-    st.info("💡 You can directly edit values in the table below and add or remove rows. Click '💾 Save Changes' to write updates to your CSV file.")
-
-    column_config = {
-        "Category": st.column_config.SelectboxColumn(
-            "Category",
-            options=["Beach", "Restaurant", "Park", "Museum", "Cafe", "Other"],
-            required=True
-        ),
-        "Visit Count": st.column_config.NumberColumn("Visit Count", min_value=1, step=1),
-        "Number of People": st.column_config.NumberColumn("Number of People", min_value=1, step=1),
-        "Latitude": st.column_config.NumberColumn("Latitude", format="%.6f"),
-        "Longitude": st.column_config.NumberColumn("Longitude", format="%.6f"),
-    }
-
     COLUMN_ORDER = [
         "Place Name", "Province", "Category", "Notes", "Last Visited", 
         "Visit Count", "Number of People", "Companions", "Latitude", "Longitude"
     ]
 
-    edited_df = st.data_editor(
+    # Interactive table view with header click sorting
+    st.dataframe(
         data,
-        num_rows="dynamic",
-        column_config=column_config,
         column_order=COLUMN_ORDER,
         use_container_width=True,
-        hide_index=True,
-        key="memory_log_editor"
+        hide_index=True
     )
 
-    col_save, col_export = st.columns([1, 3])
-    with col_save:
-        if st.button("💾 Save Changes", type="primary"):
-            save_all_data(edited_df)
-            st.success("Changes saved successfully!")
-            st.rerun()
-
-    with col_export:
-        csv_data = edited_df.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="📥 Export Log as CSV",
-            data=csv_data,
-            file_name="my_visited_places.csv",
-            mime="text/csv"
-        )
+    # Export CSV Button
+    csv_data = data.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="📥 Export Log as CSV",
+        data=csv_data,
+        file_name="my_visited_places.csv",
+        mime="text/csv"
+    )
 
     st.markdown("### 👥 View Companions per Location")
-    selected_place = st.selectbox("Select a place to see who visited with you:", edited_df["Place Name"].dropna().unique())
+    selected_place = st.selectbox("Select a place to see who visited with you:", data["Place Name"].dropna().unique())
     if selected_place:
-        matching_places = edited_df[edited_df["Place Name"] == selected_place]
+        matching_places = data[data["Place Name"] == selected_place]
         if not matching_places.empty:
             place_info = matching_places.iloc[0]
             st.info(f"**{selected_place}** ({place_info['Province']}) was visited by **{place_info['Number of People']}** person(s): **{place_info['Companions']}**")
