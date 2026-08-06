@@ -93,10 +93,13 @@ def save_all_data(df):
     df_to_save = assign_location_numbers(df_to_save)
     df_to_save.to_csv(DATA_FILE, index=False)
 
+@st.cache_data(ttl=86400)
 def geocode_place(place_name):
+    if not place_name or not place_name.strip():
+        return None, None, "Unknown"
     try:
-        geolocator = Nominatim(user_agent="travel_logger_app")
-        location = geolocator.geocode(place_name, timeout=10, addressdetails=True)
+        geolocator = Nominatim(user_agent="travel_logger_app_v2")
+        location = geolocator.geocode(place_name.strip(), timeout=5, addressdetails=True)
         if location:
             address = location.raw.get("address", {})
             raw_province = address.get("state") or address.get("province") or "Unknown"
@@ -105,10 +108,13 @@ def geocode_place(place_name):
         pass
     return None, None, "Unknown"
 
+@st.cache_data(ttl=86400)
 def reverse_geocode(lat, lon):
+    if lat is None or lon is None:
+        return "", "Unknown"
     try:
-        geolocator = Nominatim(user_agent="travel_logger_app")
-        location = geolocator.reverse((lat, lon), timeout=10)
+        geolocator = Nominatim(user_agent="travel_logger_app_v2")
+        location = geolocator.reverse((lat, lon), timeout=5)
         if location and location.raw.get("address"):
             address = location.raw["address"]
             name = (
