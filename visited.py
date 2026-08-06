@@ -40,7 +40,6 @@ def load_data():
             df["Number of People"] = 1
         if "Companions" not in df.columns:
             df["Companions"] = "Solo"
-        # Handle backward compatibility for Province
         if "Province" not in df.columns:
             df["Province"] = "Unknown"
         return df
@@ -49,6 +48,9 @@ def load_data():
             "Place Name", "Province", "Category", "Notes", "Last Visited", 
             "Visit Count", "Number of People", "Companions", "Latitude", "Longitude"
         ])
+
+def save_all_data(df):
+    df.to_csv(DATA_FILE, index=False)
 
 # Forward Geocoding: Name -> Lat/Lon & Province
 def geocode_place(place_name):
@@ -94,12 +96,10 @@ def save_entry(place_name, province, category, notes, num_people, companions, la
     now_str = get_thailand_time_str()
     companions_str = companions.strip() if companions.strip() else "Solo"
 
-    # Check if place already exists (case-insensitive match)
     existing_index = df[df["Place Name"].str.strip().str.lower() == clean_name.lower()].index
 
     if not existing_index.empty:
         idx = existing_index[0]
-        # Update existing entry
         df.loc[idx, "Visit Count"] += 1
         df.loc[idx, "Last Visited"] = now_str
         df.loc[idx, "Category"] = category
@@ -114,7 +114,6 @@ def save_entry(place_name, province, category, notes, num_people, companions, la
         final_lat = df.loc[idx, "Latitude"]
         final_lon = df.loc[idx, "Longitude"]
     else:
-        # Create new entry
         if lat is None or lon is None:
             lat, lon, detected_province = geocode_place(clean_name)
             if clean_province == "Unknown" and detected_province != "Unknown":
@@ -135,7 +134,7 @@ def save_entry(place_name, province, category, notes, num_people, companions, la
         df = pd.concat([df, new_data], ignore_index=True)
         final_lat, final_lon = lat, lon
 
-    df.to_csv(DATA_FILE, index=False)
+    save_all_data(df)
     return final_lat, final_lon
 
 # Page Config
@@ -159,8 +158,6 @@ with col_left:
         current_lat = loc['coords']['latitude']
         current_lon = loc['coords']['longitude']
         st.success(f"GPS Acquired: {current_lat:.4f}, {current_lon:.4f}")
-        
-        # Try retrieving name and province from map coordinates
         autofilled_name, autofilled_province = reverse_geocode(current_lat, current_lon)
 
     with st.form("add_place_form", clear_on_submit=True):
@@ -209,7 +206,6 @@ with col_right:
     st.subheader("🗺️ Map View")
     map_data = data.dropna(subset=["Latitude", "Longitude"])
 
-    # Determine initial map center and zoom level based on GPS check or existing data
     if use_gps and current_lat is not None and current_lon is not None:
         center_lat, center_lon = current_lat, current_lon
         zoom_level = 13
@@ -218,13 +214,11 @@ with col_right:
         center_lon = map_data["Longitude"].mean()
         zoom_level = 6
     else:
-        center_lat, center_lon = 13.73671, 100.52318  # Default Thailand coordinates
+        center_lat, center_lon = 13.73671, 100.52318
         zoom_level = 6
 
-    # Create Folium Map
     m = folium.Map(location=[center_lat, center_lon], zoom_start=zoom_level)
 
-    # Plot recorded locations
     for _, row in map_data.iterrows():
         popup_text = (
             f"<b>{row['Place Name']}</b> ({row['Province']})<br>"
@@ -240,7 +234,6 @@ with col_right:
             icon=folium.Icon(color="blue", icon="info-sign")
         ).add_to(m)
 
-    # Plot red GPS location pin when enabled
     if use_gps and current_lat is not None and current_lon is not None:
         folium.Marker(
             location=[current_lat, current_lon],
@@ -249,7 +242,6 @@ with col_right:
             icon=folium.Icon(color="red", icon="user", prefix="fa")
         ).add_to(m)
 
-    # Render map component with dynamic key
     st_folium(m, width="100%", height=400, key=f"visited_map_{use_gps}_{current_lat}_{current_lon}")
 
 st.divider()
@@ -262,22 +254,50 @@ if not data.empty:
     m_col3.metric("Total Visits Recorded", int(data["Visit Count"].sum()))
     m_col4.metric("Mapped Locations", len(map_data))
 
-    st.dataframe(
-        data.sort_values(by="Last Visited", ascending=False), 
-        use_container_width=True, 
-        hide_index=True
+    # Editable Dataframe Section
+    st.info("💡 You can directly edit values in the table below and add or remove rows. Click '💾 Save Changes' to write updates to your CSV file.")
+
+    column_config = {
+        "Category": st.column_config.SelectboxColumn(
+            "Category",
+            options=["Beach", "Restaurant", "Park", "Museum", "Cafe", "Other"],
+            required=True
+        ),
+        "Visit Count": st.column_config.NumberColumn("Visit Count", min_value=1, step=1),
+        "Number of People": st.column_config.NumberColumn("Number of People", min_value=1, step=1),
+        "Latitude": st.column_config.NumberColumn("Latitude", format="%.6f"),
+        "Longitude": st.column_config.NumberColumn("Longitude", format="%.6f"),
+    }
+
+    edited_df = st.data_editor(
+        data,
+        num_rows="dynamic",  # Allows adding and deleting rows
+        column_config=column_config,
+        use_container_width=True,
+        hide_index=True,
+        key="memory_log_editor"
     )
+
+    col_save, col_export = st.columns([1, 3])
+    with col_save:
+        if st.button("💾 Save Changes", type="primary"):
+            save_all_data(edited_df)
+            st.success("Changes saved successfully!")
+            st.rerun()
+
+    with col_export:
+        csv_data = edited_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Export Log as CSV",
+            data=csv_data,
+            file_name="my_visited_places.csv",
+            mime="text/csv"
+        )
 
     st.markdown("### 👥 View Companions per Location")
-    selected_place = st.selectbox("Select a place to see who visited with you:", data["Place Name"].unique())
+    selected_place = st.selectbox("Select a place to see who visited with you:", edited_df["Place Name"].dropna().unique())
     if selected_place:
-        place_info = data[data["Place Name"] == selected_place].iloc[0]
-        st.info(f"**{selected_place}** ({place_info['Province']}) was visited by **{place_info['Number of People']}** person(s): **{place_info['Companions']}**")
-
-    csv_data = data.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        label="📥 Export Log as CSV",
-        data=csv_data,
-        file_name="my_visited_places.csv",
-        mime="text/csv"
-    )
+        matching_places = edited_df[edited_df["Place Name"] == selected_place]
+        if not matching_places.empty:
+            place_info = matching_places.iloc[0]
+            st.info(f"**{selected_place}** ({place_info['Province']}) was visited by **{place_info['Number of People']}** person(s): **{place_info['Companions']}**")
