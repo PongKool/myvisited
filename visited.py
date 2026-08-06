@@ -221,7 +221,17 @@ with col_left:
         default_province = picked_prov
         st.info(f"📍 Location Picked on Map: ({clicked_lat:.4f}, {clicked_lon:.4f})")
 
-    # Place Name input
+    # Province selection placed above Place Name
+    prov_index = 0
+    if default_province in THAI_PROVINCES:
+        prov_index = THAI_PROVINCES.index(default_province)
+
+    if is_manual:
+        province = st.selectbox("Province", THAI_PROVINCES, index=prov_index)
+    else:
+        province = st.text_input("Province", value=default_province, placeholder="e.g., Rayong, Pathum Thani")
+
+    # Place Name input placed second
     place_name = st.text_input(
         "Place Name*", 
         value=default_name, 
@@ -236,16 +246,6 @@ with col_left:
             default_province = detected_province
             if look_gps and manual_lat and manual_lon:
                 st.info(f"📍 Location Found: {detected_province} ({manual_lat:.4f}, {manual_lon:.4f})")
-
-    # Province selection with auto-populated detected province
-    prov_index = 0
-    if default_province in THAI_PROVINCES:
-        prov_index = THAI_PROVINCES.index(default_province)
-
-    if is_manual:
-        province = st.selectbox("Province", THAI_PROVINCES, index=prov_index)
-    else:
-        province = st.text_input("Province", value=default_province, placeholder="e.g., Rayong, Pathum Thani")
 
     # Geocode selected province in Manual Mode
     prov_lat, prov_lon = None, None
