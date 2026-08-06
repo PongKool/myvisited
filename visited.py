@@ -71,8 +71,10 @@ def reverse_geocode(lat, lon):
         location = geolocator.reverse((lat, lon), timeout=10)
         if location and location.raw.get("address"):
             address = location.raw["address"]
-            # Try to grab the most specific name available
+            # Added 'facility' and 'office' to detect campuses and science parks
             return (
+                address.get("facility") or
+                address.get("office") or
                 address.get("amenity") or 
                 address.get("tourism") or 
                 address.get("building") or 
