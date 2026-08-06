@@ -210,7 +210,7 @@ with col_left:
     clicked_lon = st.session_state.get("manual_lon")
 
     default_name = ""
-    default_province = ""
+    default_province = "Unknown"
 
     if use_gps and autofilled_name:
         default_name = autofilled_name
@@ -221,22 +221,7 @@ with col_left:
         default_province = picked_prov
         st.info(f"📍 Location Picked on Map: ({clicked_lat:.4f}, {clicked_lon:.4f})")
 
-    place_name = st.text_input(
-        "Place Name*", 
-        value=default_name, 
-        placeholder="e.g., Click on the map to select or type manually"
-    )
-
-    # Preset Province automatically when place name is entered
-    manual_lat, manual_lon, detected_province = None, None, ""
-    if place_name.strip() and not default_province:
-        manual_lat, manual_lon, detected_province = geocode_place(place_name)
-        if detected_province and detected_province != "Unknown":
-            default_province = detected_province
-            if look_gps and manual_lat and manual_lon:
-                st.info(f"📍 Location Found: {detected_province} ({manual_lat:.4f}, {manual_lon:.4f})")
-
-    # Selectbox for Province in Manual mode; Text input in GPS modes
+    # Province selection rendered first
     prov_index = 0
     if default_province in THAI_PROVINCES:
         prov_index = THAI_PROVINCES.index(default_province)
@@ -250,6 +235,22 @@ with col_left:
     prov_lat, prov_lon = None, None
     if is_manual and province and province != "Unknown":
         prov_lat, prov_lon, _ = geocode_place(f"จังหวัด {province} Thailand")
+
+    # Place Name input rendered second
+    place_name = st.text_input(
+        "Place Name*", 
+        value=default_name, 
+        placeholder="e.g., Click on the map to select or type manually"
+    )
+
+    # Automatically geocode Place Name if Province is still Unknown or in Look with GPS mode
+    manual_lat, manual_lon, detected_province = None, None, ""
+    if place_name.strip() and (not default_province or default_province == "Unknown"):
+        manual_lat, manual_lon, detected_province = geocode_place(place_name)
+        if detected_province and detected_province != "Unknown":
+            default_province = detected_province
+            if look_gps and manual_lat and manual_lon:
+                st.info(f"📍 Location Found: {detected_province} ({manual_lat:.4f}, {manual_lon:.4f})")
 
     category = st.selectbox("Category", ["Beach", "Building", "Forest", "Restaurant", "Park", "Museum", "Cafe", "Other"])
     
@@ -366,7 +367,6 @@ with col_right:
             icon=folium.Icon(color="purple", icon="map-pin", prefix="fa")
         ).add_to(m)
 
-    # Dynamic key forces Folium to re-render and re-center when province or coordinates change
     map_output = st_folium(
         m, 
         width="100%", 
@@ -374,7 +374,6 @@ with col_right:
         key=f"visited_map_{gps_mode}_{province}_{prov_lat}_{prov_lon}_{clicked_lat}_{clicked_lon}_{manual_lat}_{current_lat}"
     )
 
-    # Capture map clicks when Manual mode is active
     if is_manual and map_output and map_output.get("last_clicked"):
         new_click = map_output["last_clicked"]
         if new_click["lat"] != clicked_lat or new_click["lng"] != clicked_lon:
