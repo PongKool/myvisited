@@ -109,16 +109,18 @@ def save_entry(place_name, province, category, notes, num_people, companions, la
     companions_str = companions.strip() if companions.strip() else "Solo"
 
     existing_match = df[df["Place Name"].str.strip().str.lower() == clean_name.lower()]
-    if (lat is None or lon is None) and not existing_match.empty:
-        lat = existing_match.iloc[0]["Latitude"]
-        lon = existing_match.iloc[0]["Longitude"]
-        if clean_province == "Unknown":
-            clean_province = clean_province_name(existing_match.iloc[0]["Province"])
-
+    
+    # If no explicit lat/lon passed, fallback to existing saved coords or geocode place name
     if lat is None or lon is None:
-        lat, lon, detected_province = geocode_place(clean_name)
-        if clean_province == "Unknown" and detected_province != "Unknown":
-            clean_province = detected_province
+        if not existing_match.empty:
+            lat = existing_match.iloc[0]["Latitude"]
+            lon = existing_match.iloc[0]["Longitude"]
+            if clean_province == "Unknown":
+                clean_province = clean_province_name(existing_match.iloc[0]["Province"])
+        else:
+            lat, lon, detected_province = geocode_place(clean_name)
+            if clean_province == "Unknown" and detected_province != "Unknown":
+                clean_province = detected_province
 
     visit_number = len(existing_match) + 1
 
@@ -162,14 +164,23 @@ with col_left:
         autofilled_name, autofilled_province = reverse_geocode(current_lat, current_lon)
 
     with st.form("add_place_form", clear_on_submit=True):
+        col_chk1, col_chk2 = st.columns(2)
+        with col_chk1:
+            use_gps = st.checkbox("Use current GPS", value=bool(current_lat))
+        with col_chk2:
+            look_gps = st.checkbox("Look with GPS", value=False, help="Attach live GPS coordinates to manual place name")
+
+        default_name = autofilled_name if use_gps and autofilled_name else ""
+        default_province = autofilled_province if use_gps and autofilled_province else ""
+
         place_name = st.text_input(
             "Place Name*", 
-            value=autofilled_name, 
-            placeholder="e.g., Rayong Beach (Auto-detected if GPS enabled)"
+            value=default_name, 
+            placeholder="e.g., Rayong Beach (Auto-detected if Use GPS enabled)"
         )
         province = st.text_input(
             "Province", 
-            value=autofilled_province, 
+            value=default_province, 
             placeholder="e.g., Rayong, Pathum Thani"
         )
         category = st.selectbox("Category", ["Beach", "Building", "Forest", "Restaurant", "Park", "Museum", "Cafe", "Other"])
@@ -181,7 +192,6 @@ with col_left:
             companions = st.text_input("Who went with you?", placeholder="e.g., Alice, Bob (Leave empty for Solo)")
             
         notes = st.text_area("Notes / Memories", placeholder="e.g., Had great seafood, sunset was amazing!")
-        use_gps = st.checkbox("Use current GPS coordinates", value=bool(current_lat))
 
         submitted = st.form_submit_button("📌 Record Place")
 
@@ -189,8 +199,8 @@ with col_left:
             if not place_name.strip():
                 st.error("Please enter a place name before saving.")
             else:
-                lat_to_save = current_lat if use_gps else None
-                lon_to_save = current_lon if use_gps else None
+                lat_to_save = current_lat if (use_gps or look_gps) else None
+                lon_to_save = current_lon if (use_gps or look_gps) else None
 
                 lat, lon = save_entry(
                     place_name, province, category, notes, num_people, companions,
@@ -207,7 +217,8 @@ with col_right:
     st.subheader("🗺️ Map View")
     map_data = data.dropna(subset=["Latitude", "Longitude"])
 
-    if use_gps and current_lat is not None and current_lon is not None:
+    # Center map on GPS position when either GPS checkbox is selected
+    if (use_gps or look_gps) and current_lat is not None and current_lon is not None:
         center_lat, center_lon = current_lat, current_lon
         zoom_level = 13
     elif not map_data.empty:
@@ -246,7 +257,7 @@ with col_right:
             icon=folium.Icon(color="blue", icon="info-sign")
         ).add_to(m)
 
-    if use_gps and current_lat is not None and current_lon is not None:
+    if (use_gps or look_gps) and current_lat is not None and current_lon is not None:
         folium.Marker(
             location=[current_lat, current_lon],
             popup="📍 You are here (Current GPS)",
@@ -254,7 +265,7 @@ with col_right:
             icon=folium.Icon(color="red", icon="user", prefix="fa")
         ).add_to(m)
 
-    st_folium(m, width="100%", height=400, key=f"visited_map_{use_gps}_{current_lat}_{current_lon}")
+    st_folium(m, width="100%", height=400, key=f"visited_map_{use_gps}_{look_gps}_{current_lat}_{current_lon}")
 
 st.divider()
 
