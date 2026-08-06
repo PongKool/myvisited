@@ -154,6 +154,11 @@ st.write("Record and visualize all the amazing places you have visited on an int
 
 col_left, col_right = st.columns([1, 2])
 
+# Session state initialization for manual map pin picking
+if "manual_lat" not in st.session_state:
+    st.session_state.manual_lat = None
+    st.session_state.manual_lon = None
+
 with col_left:
     st.subheader("Add / Log a Place")
     
@@ -168,25 +173,37 @@ with col_left:
         st.success(f"GPS Acquired: {current_lat:.4f}, {current_lon:.4f}")
         autofilled_name, autofilled_province = reverse_geocode(current_lat, current_lon)
 
-    # Radio selection ensures only 1 GPS mode can be active at any time
     gps_mode = st.radio(
         "GPS Mode:",
         options=["Manual", "Use current GPS", "Look with GPS"],
         index=1 if current_lat else 0,
         horizontal=True,
-        help="Choose 'Use current GPS' to auto-detect location, or 'Look with GPS' to find coordinates for typed place name."
+        help="Manual: Click on the map to pick a location. Use current GPS: Auto-detect location. Look with GPS: Search coordinates for typed place name."
     )
 
     use_gps = (gps_mode == "Use current GPS")
     look_gps = (gps_mode == "Look with GPS")
+    is_manual = (gps_mode == "Manual")
 
-    default_name = autofilled_name if use_gps and autofilled_name else ""
-    default_province = autofilled_province if use_gps and autofilled_province else ""
+    clicked_lat = st.session_state.get("manual_lat")
+    clicked_lon = st.session_state.get("manual_lon")
+
+    default_name = ""
+    default_province = ""
+
+    if use_gps and autofilled_name:
+        default_name = autofilled_name
+        default_province = autofilled_province
+    elif is_manual and clicked_lat and clicked_lon:
+        picked_name, picked_prov = reverse_geocode(clicked_lat, clicked_lon)
+        default_name = picked_name
+        default_province = picked_prov
+        st.info(f"📍 Location Picked on Map: ({clicked_lat:.4f}, {clicked_lon:.4f})")
 
     place_name = st.text_input(
         "Place Name*", 
         value=default_name, 
-        placeholder="e.g., น้ำตกเจ็ดคด"
+        placeholder="e.g., Click on the map to select or type manually"
     )
 
     manual_lat, manual_lon, detected_province = None, None, ""
@@ -220,6 +237,8 @@ with col_left:
                 lat_to_save, lon_to_save = current_lat, current_lon
             elif look_gps and manual_lat:
                 lat_to_save, lon_to_save = manual_lat, manual_lon
+            elif is_manual and clicked_lat and clicked_lon:
+                lat_to_save, lon_to_save = clicked_lat, clicked_lon
             else:
                 lat_to_save, lon_to_save = None, None
 
@@ -230,6 +249,9 @@ with col_left:
 
             if lat and lon:
                 st.success(f"Logged '{place_name}' successfully!")
+                # Reset manual pin selection after saving
+                st.session_state.manual_lat = None
+                st.session_state.manual_lon = None
                 st.rerun()
             else:
                 st.warning(f"Logged '{place_name}', but couldn't locate it on the map.")
@@ -244,6 +266,9 @@ with col_right:
         zoom_level = 13
     elif use_gps and current_lat is not None and current_lon is not None:
         center_lat, center_lon = current_lat, current_lon
+        zoom_level = 13
+    elif is_manual and clicked_lat is not None and clicked_lon is not None:
+        center_lat, center_lon = clicked_lat, clicked_lon
         zoom_level = 13
     elif not map_data.empty:
         center_lat = map_data["Latitude"].mean()
@@ -297,7 +322,23 @@ with col_right:
             icon=folium.Icon(color="red", icon="user", prefix="fa")
         ).add_to(m)
 
-    st_folium(m, width="100%", height=400, key=f"visited_map_{gps_mode}_{current_lat}_{manual_lat}_{manual_lon}")
+    if is_manual and clicked_lat is not None and clicked_lon is not None:
+        folium.Marker(
+            location=[clicked_lat, clicked_lon],
+            popup="📍 Selected Location",
+            tooltip="Picked Location",
+            icon=folium.Icon(color="purple", icon="map-pin", prefix="fa")
+        ).add_to(m)
+
+    map_output = st_folium(m, width="100%", height=400, key=f"visited_map_{gps_mode}_{current_lat}_{manual_lat}_{clicked_lat}_{clicked_lon}")
+
+    # Capture map clicks when Manual mode is active
+    if is_manual and map_output and map_output.get("last_clicked"):
+        new_click = map_output["last_clicked"]
+        if new_click["lat"] != clicked_lat or new_click["lng"] != clicked_lon:
+            st.session_state.manual_lat = new_click["lat"]
+            st.session_state.manual_lon = new_click["lng"]
+            st.rerun()
 
 st.divider()
 
