@@ -45,36 +45,41 @@ def load_data():
 
         if "Companions" not in df.columns:
             df["Companions"] = "Solo"
+
+        # Handle backward compatibility for Province
+        if "Province" not in df.columns:
+            df["Province"] = "Unknown"
             
         return df
     else:
         return pd.DataFrame(columns=[
-            "Place Name", "Category", "Notes", "Last Visited", 
+            "Place Name", "Province", "Category", "Notes", "Last Visited", 
             "Visit Count", "Number of People", "Companions", "Latitude", "Longitude"
         ])
 
-# Forward Geocoding: Name -> Lat/Lon
+# Forward Geocoding: Name -> Lat/Lon & Province
 def geocode_place(place_name):
     try:
         geolocator = Nominatim(user_agent="travel_logger_app")
-        location = geolocator.geocode(place_name, timeout=10)
+        location = geolocator.geocode(place_name, timeout=10, addressdetails=True)
         if location:
-            return location.latitude, location.longitude
+            address = location.raw.get("address", {})
+            province = address.get("state") or address.get("province") or "Unknown"
+            return location.latitude, location.longitude, province
     except Exception:
         pass
-    return None, None
+    return None, None, "Unknown"
 
-# Reverse Geocoding: Lat/Lon -> Place Name
+# Reverse Geocoding: Lat/Lon -> Place Name & Province
 def reverse_geocode(lat, lon):
     try:
         geolocator = Nominatim(user_agent="travel_logger_app")
         location = geolocator.reverse((lat, lon), timeout=10)
         if location and location.raw.get("address"):
             address = location.raw["address"]
-            # Added 'facility' and 'office' to detect campuses and science parks
-            return (
-                address.get("facility") or
-                address.get("office") or
+            name = (
+                address.get("facility") or 
+                address.get("office") or 
                 address.get("amenity") or 
                 address.get("tourism") or 
                 address.get("building") or 
@@ -83,13 +88,16 @@ def reverse_geocode(lat, lon):
                 address.get("road") or 
                 location.address.split(",")[0]
             )
+            province = address.get("state") or address.get("province") or "Unknown"
+            return name, province
     except Exception:
         pass
-    return ""
+    return "", "Unknown"
 
-def save_entry(place_name, category, notes, num_people, companions, lat=None, lon=None):
+def save_entry(place_name, province, category, notes, num_people, companions, lat=None, lon=None):
     df = load_data()
     clean_name = place_name.strip()
+    clean_province = province.strip() if province.strip() else "Unknown"
     now_str = get_thailand_time_str()
     companions_str = companions.strip() if companions.strip() else "Solo"
     
@@ -102,6 +110,7 @@ def save_entry(place_name, category, notes, num_people, companions, lat=None, lo
         df.loc[idx, "Visit Count"] += 1
         df.loc[idx, "Last Visited"] = now_str
         df.loc[idx, "Category"] = category
+        df.loc[idx, "Province"] = clean_province
         df.loc[idx, "Number of People"] = num_people
         df.loc[idx, "Companions"] = companions_str
         if notes:
@@ -116,10 +125,13 @@ def save_entry(place_name, category, notes, num_people, companions, lat=None, lo
     else:
         # Create new entry
         if lat is None or lon is None:
-            lat, lon = geocode_place(clean_name)
+            lat, lon, detected_province = geocode_place(clean_name)
+            if clean_province == "Unknown" and detected_province != "Unknown":
+                clean_province = detected_province
             
         new_data = pd.DataFrame([{
             "Place Name": clean_name,
+            "Province": clean_province,
             "Category": category,
             "Notes": notes,
             "Last Visited": now_str,
@@ -151,20 +163,26 @@ with col_left:
     
     current_lat, current_lon = None, None
     autofilled_name = ""
+    autofilled_province = ""
     
     if loc and 'coords' in loc:
         current_lat = loc['coords']['latitude']
         current_lon = loc['coords']['longitude']
         st.success(f"GPS Acquired: {current_lat:.4f}, {current_lon:.4f}")
         
-        # Try retrieving name from map coordinates
-        autofilled_name = reverse_geocode(current_lat, current_lon)
+        # Try retrieving name and province from map coordinates
+        autofilled_name, autofilled_province = reverse_geocode(current_lat, current_lon)
 
     with st.form("add_place_form", clear_on_submit=True):
         place_name = st.text_input(
             "Place Name*", 
             value=autofilled_name, 
             placeholder="e.g., Rayong Beach (Auto-detected if GPS enabled)"
+        )
+        province = st.text_input(
+            "Province", 
+            value=autofilled_province, 
+            placeholder="e.g., Rayong, Pathum Thani"
         )
         category = st.selectbox("Category", ["Beach", "Restaurant", "Park", "Museum", "Cafe", "Other"])
         
@@ -188,7 +206,7 @@ with col_left:
                 lon_to_save = current_lon if use_gps else None
                 
                 lat, lon = save_entry(
-                    place_name, category, notes, num_people, companions, 
+                    place_name, province, category, notes, num_people, companions, 
                     lat=lat_to_save, lon=lon_to_save
                 )
                 
@@ -209,7 +227,7 @@ with col_right:
 
         for _, row in map_data.iterrows():
             popup_text = (
-                f"<b>{row['Place Name']}</b><br>"
+                f"<b>{row['Place Name']}</b> ({row['Province']})<br>"
                 f"<i>Visits:</i> {row['Visit Count']}<br>"
                 f"<i>People:</i> {row['Number of People']} ({row['Companions']})<br>"
                 f"<i>Category:</i> {row['Category']}<br>"
@@ -218,7 +236,7 @@ with col_right:
             folium.Marker(
                 location=[row["Latitude"], row["Longitude"]],
                 popup=folium.Popup(popup_text, max_width=250),
-                tooltip=f"{row['Place Name']} ({row['Number of People']} people)",
+                tooltip=f"{row['Place Name']}, {row['Province']}",
                 icon=folium.Icon(color="blue", icon="info-sign")
             ).add_to(m)
 
@@ -230,10 +248,11 @@ st.divider()
 
 st.subheader("📋 Memory Log")
 if not data.empty:
-    m_col1, m_col2, m_col3 = st.columns(3)
+    m_col1, m_col2, m_col3, m_col4 = st.columns(4)
     m_col1.metric("Unique Places", len(data))
-    m_col2.metric("Total Visits Recorded", int(data["Visit Count"].sum()))
-    m_col3.metric("Mapped Locations", len(map_data))
+    m_col2.metric("Provinces Visited", data["Province"].nunique())
+    m_col3.metric("Total Visits Recorded", int(data["Visit Count"].sum()))
+    m_col4.metric("Mapped Locations", len(map_data))
 
     st.dataframe(
         data.sort_values(by="Last Visited", ascending=False),
@@ -245,7 +264,7 @@ if not data.empty:
     selected_place = st.selectbox("Select a place to see who visited with you:", data["Place Name"].unique())
     if selected_place:
         place_info = data[data["Place Name"] == selected_place].iloc[0]
-        st.info(f"**{selected_place}** was visited by **{place_info['Number of People']}** person(s): **{place_info['Companions']}**")
+        st.info(f"**{selected_place}** ({place_info['Province']}) was visited by **{place_info['Number of People']}** person(s): **{place_info['Companions']}**")
 
     csv_data = data.to_csv(index=False).encode('utf-8')
     st.download_button(
