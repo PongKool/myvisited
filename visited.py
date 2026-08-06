@@ -26,7 +26,7 @@ THAI_PROVINCES = [
 ]
 
 CATEGORIES = [
-    "Beach", "Building", "Forest", "Restaurant", "Park", "Museum", "Cafe", "Temple", "Other"
+    "Beach", "Building", "Forest", "Historic", "Restaurant", "Park", "Museum", "Cafe", "Temple", "Other"
 ]
 
 def get_thailand_time_str():
