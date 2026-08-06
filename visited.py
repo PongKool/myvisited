@@ -98,7 +98,7 @@ def geocode_place(place_name):
     if not place_name or not place_name.strip():
         return None, None, "Unknown"
     try:
-        geolocator = Nominatim(user_agent="travel_logger_app_v2")
+        geolocator = Nominatim(user_agent="travel_logger_app_v3")
         location = geolocator.geocode(place_name.strip(), timeout=5, addressdetails=True)
         if location:
             address = location.raw.get("address", {})
@@ -113,7 +113,7 @@ def reverse_geocode(lat, lon):
     if lat is None or lon is None:
         return "", "Unknown"
     try:
-        geolocator = Nominatim(user_agent="travel_logger_app_v2")
+        geolocator = Nominatim(user_agent="travel_logger_app_v3")
         location = geolocator.reverse((lat, lon), timeout=5)
         if location and location.raw.get("address"):
             address = location.raw["address"]
@@ -246,10 +246,10 @@ with col_left:
     else:
         province = st.text_input("Province", value=default_province, placeholder="e.g., Rayong, Pathum Thani")
 
-    # Geocode selected province in Manual Mode using clean query
+    # Geocode selected province in Manual Mode
     prov_lat, prov_lon = None, None
     if is_manual and province and province != "Unknown":
-        prov_lat, prov_lon, _ = geocode_place(f"{province}, Thailand")
+        prov_lat, prov_lon, _ = geocode_place(f"จังหวัด {province} Thailand")
 
     category = st.selectbox("Category", ["Beach", "Building", "Forest", "Restaurant", "Park", "Museum", "Cafe", "Other"])
     
@@ -305,7 +305,7 @@ with col_right:
         zoom_level = 13
     elif is_manual and prov_lat is not None and prov_lon is not None:
         center_lat, center_lon = prov_lat, prov_lon
-        zoom_level = 9
+        zoom_level = 8
     elif not map_data.empty:
         center_lat = map_data["Latitude"].mean()
         center_lon = map_data["Longitude"].mean()
@@ -366,7 +366,13 @@ with col_right:
             icon=folium.Icon(color="purple", icon="map-pin", prefix="fa")
         ).add_to(m)
 
-    map_output = st_folium(m, width="100%", height=400, key=f"visited_map_{gps_mode}_{current_lat}_{manual_lat}_{clicked_lat}_{clicked_lon}_{prov_lat}_{prov_lon}")
+    # Dynamic key forces Folium to re-render and re-center when province or coordinates change
+    map_output = st_folium(
+        m, 
+        width="100%", 
+        height=400, 
+        key=f"visited_map_{gps_mode}_{province}_{prov_lat}_{prov_lon}_{clicked_lat}_{clicked_lon}_{manual_lat}_{current_lat}"
+    )
 
     # Capture map clicks when Manual mode is active
     if is_manual and map_output and map_output.get("last_clicked"):
