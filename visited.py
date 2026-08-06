@@ -40,7 +40,6 @@ def load_data():
         if "Visit Count" not in df.columns:
             df["Visit Count"] = 1
 
-        # Handle backward compatibility for companion fields
         if "Number of People" not in df.columns:
             df["Number of People"] = 1
 
@@ -54,6 +53,7 @@ def load_data():
             "Visit Count", "Number of People", "Companions", "Latitude", "Longitude"
         ])
 
+# Forward Geocoding: Name -> Lat/Lon
 def geocode_place(place_name):
     try:
         geolocator = Nominatim(user_agent="travel_logger_app")
@@ -63,6 +63,27 @@ def geocode_place(place_name):
     except Exception:
         pass
     return None, None
+
+# Reverse Geocoding: Lat/Lon -> Place Name
+def reverse_geocode(lat, lon):
+    try:
+        geolocator = Nominatim(user_agent="travel_logger_app")
+        location = geolocator.reverse((lat, lon), timeout=10)
+        if location and location.raw.get("address"):
+            address = location.raw["address"]
+            # Try to grab the most specific name available
+            return (
+                address.get("amenity") or 
+                address.get("tourism") or 
+                address.get("building") or 
+                address.get("leisure") or 
+                address.get("shop") or 
+                address.get("road") or 
+                location.address.split(",")[0]
+            )
+    except Exception:
+        pass
+    return ""
 
 def save_entry(place_name, category, notes, num_people, companions, lat=None, lon=None):
     df = load_data()
@@ -123,15 +144,26 @@ col_left, col_right = st.columns([1, 2])
 with col_left:
     st.subheader("Add / Log a Place")
     
+    # Acquire browser live geolocation
     loc = get_geolocation()
+    
     current_lat, current_lon = None, None
+    autofilled_name = ""
+    
     if loc and 'coords' in loc:
         current_lat = loc['coords']['latitude']
         current_lon = loc['coords']['longitude']
         st.success(f"GPS Acquired: {current_lat:.4f}, {current_lon:.4f}")
+        
+        # Try retrieving name from map coordinates
+        autofilled_name = reverse_geocode(current_lat, current_lon)
 
     with st.form("add_place_form", clear_on_submit=True):
-        place_name = st.text_input("Place Name*", placeholder="e.g., Rayong Beach")
+        place_name = st.text_input(
+            "Place Name*", 
+            value=autofilled_name, 
+            placeholder="e.g., Rayong Beach (Auto-detected if GPS enabled)"
+        )
         category = st.selectbox("Category", ["Beach", "Restaurant", "Park", "Museum", "Cafe", "Other"])
         
         col_num, col_comp = st.columns([1, 2])
@@ -207,7 +239,6 @@ if not data.empty:
         hide_index=True
     )
 
-    # Detailed expander view for companions per place
     st.markdown("### 👥 View Companions per Location")
     selected_place = st.selectbox("Select a place to see who visited with you:", data["Place Name"].unique())
     if selected_place:
