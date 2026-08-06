@@ -10,6 +10,21 @@ from streamlit_js_eval import get_geolocation
 
 DATA_FILE = "visited_places.csv"
 
+THAI_PROVINCES = [
+    "Unknown", "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", 
+    "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", 
+    "เชียงราย", "เชียงใหม่", "ตรัง", "ตราด", "ตาก", "นครนายก", "นครปฐม", 
+    "นครพนม", "นครราชสีมา", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี", "นราธิวาส", 
+    "น่าน", "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์", "ปราจีนบุรี", 
+    "ปัตตานี", "พะเยา", "พระนครศรีอยุธยา", "พังงา", "พัทลุง", "พิจิตร", "พิษณุโลก", 
+    "เพชรบุรี", "เพชรบูรณ์", "แพร่", "ภูเก็ต", "มหาสารคาม", "มุกดาหาร", "แม่ฮ่องสอน", 
+    "ยโสธร", "ยะลา", "ร้อยเอ็ด", "ระนอง", "ระยอง", "ราชบุรี", "ลพบุรี", "ลำปาง", 
+    "ลำพูน", "เลย", "ศรีสะเกษ", "สกลนคร", "สงขลา", "สตูล", "สมุทรปราการ", 
+    "สมุทรสงคราม", "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี", "สุโขทัย", 
+    "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", "หนองคาย", "หนองบัวลำภู", "อ่างทอง", 
+    "อำนาจเจริญ", "อุดรธานี", "อุตรดิตถ์", "อุทัยธานี", "อุบลราชธานี"
+]
+
 def get_thailand_time_str():
     return datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %I:%M:%S %p")
 
@@ -178,7 +193,7 @@ with col_left:
         options=["Manual", "Use current GPS", "Look with GPS"],
         index=1 if current_lat else 0,
         horizontal=True,
-        help="Manual: Click on the map to pick a location. Use current GPS: Auto-detect location. Look with GPS: Search coordinates for typed place name."
+        help="Manual: Click on map or select province to locate. Use current GPS: Auto-detect location. Look with GPS: Search coordinates for typed place name."
     )
 
     use_gps = (gps_mode == "Use current GPS")
@@ -206,19 +221,30 @@ with col_left:
         placeholder="e.g., Click on the map to select or type manually"
     )
 
+    # Preset Province automatically when place name is entered
     manual_lat, manual_lon, detected_province = None, None, ""
-    if look_gps and place_name.strip():
+    if place_name.strip() and not default_province:
         manual_lat, manual_lon, detected_province = geocode_place(place_name)
-        if manual_lat and manual_lon:
-            st.info(f"📍 Location Found: {detected_province} ({manual_lat:.4f}, {manual_lon:.4f})")
-            if not default_province or default_province == "Unknown":
-                default_province = detected_province
+        if detected_province and detected_province != "Unknown":
+            default_province = detected_province
+            if look_gps and manual_lat and manual_lon:
+                st.info(f"📍 Location Found: {detected_province} ({manual_lat:.4f}, {manual_lon:.4f})")
 
-    province = st.text_input(
-        "Province", 
-        value=default_province, 
-        placeholder="e.g., Rayong, Pathum Thani"
-    )
+    # Selectbox for Province in Manual mode; Text input in GPS modes
+    prov_index = 0
+    if default_province in THAI_PROVINCES:
+        prov_index = THAI_PROVINCES.index(default_province)
+
+    if is_manual:
+        province = st.selectbox("Province", THAI_PROVINCES, index=prov_index)
+    else:
+        province = st.text_input("Province", value=default_province, placeholder="e.g., Rayong, Pathum Thani")
+
+    # Geocode selected province in Manual Mode to pan map automatically
+    prov_lat, prov_lon = None, None
+    if is_manual and province and province != "Unknown":
+        prov_lat, prov_lon, _ = geocode_place(f"จังหวัด{province}")
+
     category = st.selectbox("Category", ["Beach", "Building", "Forest", "Restaurant", "Park", "Museum", "Cafe", "Other"])
     
     col_num, col_comp = st.columns([1, 2])
@@ -239,6 +265,8 @@ with col_left:
                 lat_to_save, lon_to_save = manual_lat, manual_lon
             elif is_manual and clicked_lat and clicked_lon:
                 lat_to_save, lon_to_save = clicked_lat, clicked_lon
+            elif is_manual and prov_lat and prov_lon:
+                lat_to_save, lon_to_save = prov_lat, prov_lon
             else:
                 lat_to_save, lon_to_save = None, None
 
@@ -249,7 +277,6 @@ with col_left:
 
             if lat and lon:
                 st.success(f"Logged '{place_name}' successfully!")
-                # Reset manual pin selection after saving
                 st.session_state.manual_lat = None
                 st.session_state.manual_lon = None
                 st.rerun()
@@ -270,6 +297,9 @@ with col_right:
     elif is_manual and clicked_lat is not None and clicked_lon is not None:
         center_lat, center_lon = clicked_lat, clicked_lon
         zoom_level = 13
+    elif is_manual and prov_lat is not None and prov_lon is not None:
+        center_lat, center_lon = prov_lat, prov_lon
+        zoom_level = 10
     elif not map_data.empty:
         center_lat = map_data["Latitude"].mean()
         center_lon = map_data["Longitude"].mean()
@@ -330,7 +360,7 @@ with col_right:
             icon=folium.Icon(color="purple", icon="map-pin", prefix="fa")
         ).add_to(m)
 
-    map_output = st_folium(m, width="100%", height=400, key=f"visited_map_{gps_mode}_{current_lat}_{manual_lat}_{clicked_lat}_{clicked_lon}")
+    map_output = st_folium(m, width="100%", height=400, key=f"visited_map_{gps_mode}_{current_lat}_{manual_lat}_{clicked_lat}_{clicked_lon}_{prov_lat}_{prov_lon}")
 
     # Capture map clicks when Manual mode is active
     if is_manual and map_output and map_output.get("last_clicked"):
@@ -456,3 +486,4 @@ if not data.empty:
                 f"👥 **Group Size:** {chosen_visit['Number of People']} person(s) (**Companions:** {chosen_visit['Companions']})\n\n"
                 f"📝 **Notes:** {chosen_visit['Notes'] if pd.notna(chosen_visit['Notes']) and chosen_visit['Notes'] else 'No notes added'}"
             )
+]
