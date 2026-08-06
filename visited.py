@@ -21,7 +21,6 @@ def clean_province_name(province_str):
 
 def assign_location_numbers(df):
     group_cols = ["Place Name", "Province", "Category", "Latitude", "Longitude"]
-    # Check if required columns exist before grouping
     if all(col in df.columns for col in group_cols):
         df["No."] = df.groupby(group_cols, sort=False).ngroup() + 1
     else:
@@ -66,7 +65,6 @@ def load_data():
         else:
             df["Notes"] = df["Notes"].fillna("")
 
-        # Assign same 'No.' to duplicate locations (matching Place, Province, Category, Lat, Lon)
         df = assign_location_numbers(df)
         return df
     else:
@@ -132,7 +130,7 @@ def save_entry(place_name, province, category, notes, num_people, companions, la
     visit_number = len(existing_match) + 1
 
     new_entry = pd.DataFrame([{
-        "No.": 1,  # Temporary placeholder; recalculated below
+        "No.": 1,
         "Place Name": clean_name,
         "Province": clean_province,
         "Category": category,
@@ -170,11 +168,17 @@ with col_left:
         st.success(f"GPS Acquired: {current_lat:.4f}, {current_lon:.4f}")
         autofilled_name, autofilled_province = reverse_geocode(current_lat, current_lon)
 
-    col_chk1, col_chk2 = st.columns(2)
-    with col_chk1:
-        use_gps = st.checkbox("Use current GPS", value=bool(current_lat))
-    with col_chk2:
-        look_gps = st.checkbox("Look with GPS", value=False, help="Search coordinates and province for typed place name")
+    # Radio selection ensures only 1 GPS mode can be active at any time
+    gps_mode = st.radio(
+        "GPS Mode:",
+        options=["Manual", "Use current GPS", "Look with GPS"],
+        index=1 if current_lat else 0,
+        horizontal=True,
+        help="Choose 'Use current GPS' to auto-detect location, or 'Look with GPS' to find coordinates for typed place name."
+    )
+
+    use_gps = (gps_mode == "Use current GPS")
+    look_gps = (gps_mode == "Look with GPS")
 
     default_name = autofilled_name if use_gps and autofilled_name else ""
     default_province = autofilled_province if use_gps and autofilled_province else ""
@@ -293,7 +297,7 @@ with col_right:
             icon=folium.Icon(color="red", icon="user", prefix="fa")
         ).add_to(m)
 
-    st_folium(m, width="100%", height=400, key=f"visited_map_{use_gps}_{look_gps}_{current_lat}_{manual_lat}_{manual_lon}")
+    st_folium(m, width="100%", height=400, key=f"visited_map_{gps_mode}_{current_lat}_{manual_lat}_{manual_lon}")
 
 st.divider()
 
