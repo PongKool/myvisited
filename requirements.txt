@@ -1,5 +1,6 @@
-streamlit 
-pandas 
-geopy 
-folium 
+streamlit
+pandas
+folium
 streamlit-folium
+geopy
+streamlit-js-eval
