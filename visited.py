@@ -9,19 +9,18 @@ from zoneinfo import ZoneInfo
 from streamlit_js_eval import get_geolocation
 
 DATA_FILE = "visited_places.csv"
-
 THAI_PROVINCES = [
-    "Unknown", "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", 
-    "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", 
-    "เชียงราย", "เชียงใหม่", "ตรัง", "ตราด", "ตาก", "นครนายก", "นครปฐม", 
-    "นครพนม", "นครราชสีมา", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี", "นราธิวาส", 
-    "น่าน", "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์", "ปราจีนบุรี", 
-    "ปัตตานี", "พะเยา", "พระนครศรีอยุธยา", "พังงา", "พัทลุง", "พิจิตร", "พิษณุโลก", 
-    "เพชรบุรี", "เพชรบูรณ์", "แพร่", "ภูเก็ต", "มหาสารคาม", "มุกดาหาร", "แม่ฮ่องสอน", 
-    "ยโสธร", "ยะลา", "ร้อยเอ็ด", "ระนอง", "ระยอง", "ราชบุรี", "ลพบุรี", "ลำปาง", 
-    "ลำพูน", "เลย", "ศรีสะเกษ", "สกลนคร", "สงขลา", "สตูล", "สมุทรปราการ", 
-    "สมุทรสงคราม", "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี", "สุโขทัย", 
-    "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", "หนองคาย", "หนองบัวลำภู", "อ่างทอง", 
+    "Unknown", "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร",
+    "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร",
+    "เชียงราย", "เชียงใหม่", "ตรัง", "ตราด", "ตาก", "นครนายก", "นครปฐม",
+    "นครพนม", "นครราชสีมา", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี", "นราธิวาส",
+    "น่าน", "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์", "ปราจีนบุรี",
+    "ปัตตานี", "พะเยา", "พระนครศรีอยุธยา", "พังงา", "พัทลุง", "พิจิตร", "พิษณุโลก",
+    "เพชรบุรี", "เพชรบูรณ์", "แพร่", "ภูเก็ต", "มหาสารคาม", "มุกดาหาร", "แม่ฮ่องสอน",
+    "ยโสธร", "ยะลา", "ร้อยเอ็ด", "ระนอง", "ระยอง", "ราชบุรี", "ลพบุรี", "ลำปาง",
+    "ลำพูน", "เลย", "ศรีสะเกษ", "สกลนคร", "สงขลา", "สตูล", "สมุทรปราการ",
+    "สมุทรสงคราม", "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี", "สุโขทัย",
+    "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", "หนองคาย", "หนองบัวลำภู", "อ่างทอง",
     "อำนาจเจริญ", "อุดรธานี", "อุตรดิตถ์", "อุทัยธานี", "อุบลราชธานี"
 ]
 
@@ -63,7 +62,6 @@ def load_data():
                 except Exception:
                     return val_str
             df["Last Visited"] = df["Last Visited"].apply(fix_timestamp)
-
         if "Visit Count" not in df.columns:
             df["Visit Count"] = 1
         if "Number of People" not in df.columns:
@@ -74,18 +72,17 @@ def load_data():
             df["Province"] = "Unknown"
         else:
             df["Province"] = df["Province"].apply(clean_province_name)
-
         if "Notes" not in df.columns:
             df["Notes"] = ""
         else:
             df["Notes"] = df["Notes"].fillna("")
-
         df = assign_location_numbers(df)
         return df
     else:
         return pd.DataFrame(columns=[
-            "No.", "Place Name", "Province", "Category", "Notes", "Last Visited", 
-            "Visit Count", "Number of People", "Companions", "Latitude", "Longitude"
+            "No.", "Place Name", "Province", "Category", "Notes",
+            "Last Visited", "Visit Count", "Number of People", "Companions",
+            "Latitude", "Longitude"
         ])
 
 def save_all_data(df):
@@ -117,11 +114,9 @@ def reverse_geocode(lat, lon):
         location = geolocator.reverse((lat, lon), timeout=5)
         if location and location.raw.get("address"):
             address = location.raw["address"]
-            name = (
-                address.get("facility") or address.get("office") or address.get("amenity") or
-                address.get("tourism") or address.get("building") or address.get("leisure") or
-                address.get("shop") or address.get("road") or location.address.split(",")[0]
-            )
+            name = (address.get("facility") or address.get("office") or address.get("amenity") or
+                    address.get("tourism") or address.get("building") or address.get("leisure") or
+                    address.get("shop") or address.get("road") or location.address.split(",")[0])
             raw_province = address.get("state") or address.get("province") or "Unknown"
             return name, clean_province_name(raw_province)
     except Exception:
@@ -134,9 +129,8 @@ def save_entry(place_name, province, category, notes, num_people, companions, la
     clean_province = clean_province_name(province)
     now_str = get_thailand_time_str()
     companions_str = companions.strip() if companions.strip() else "Solo"
-
-    existing_match = df[df["Place Name"].str.strip().str.lower() == clean_name.lower()]
     
+    existing_match = df[df["Place Name"].str.strip().str.lower() == clean_name.lower()]
     if lat is None or lon is None:
         if not existing_match.empty:
             lat = existing_match.iloc[0]["Latitude"]
@@ -149,7 +143,6 @@ def save_entry(place_name, province, category, notes, num_people, companions, la
                 clean_province = detected_province
 
     visit_number = len(existing_match) + 1
-
     new_entry = pd.DataFrame([{
         "No.": 1,
         "Place Name": clean_name,
@@ -163,7 +156,6 @@ def save_entry(place_name, province, category, notes, num_people, companions, la
         "Latitude": lat,
         "Longitude": lon
     }])
-
     df = pd.concat([df, new_entry], ignore_index=True)
     save_all_data(df)
     return lat, lon
@@ -187,7 +179,6 @@ with col_left:
     current_lat, current_lon = None, None
     autofilled_name = ""
     autofilled_province = ""
-
     if loc and 'coords' in loc:
         current_lat = loc['coords']['latitude']
         current_lon = loc['coords']['longitude']
@@ -201,7 +192,7 @@ with col_left:
         horizontal=True,
         help="Manual: Click on map or select province to locate. Use current GPS: Auto-detect location. Look with GPS: Search coordinates for typed place name."
     )
-
+    
     use_gps = (gps_mode == "Use current GPS")
     look_gps = (gps_mode == "Look with GPS")
     is_manual = (gps_mode == "Manual")
@@ -221,7 +212,24 @@ with col_left:
         default_province = picked_prov
         st.info(f"📍 Location Picked on Map: ({clicked_lat:.4f}, {clicked_lon:.4f})")
 
-    # Province selection placed above Place Name
+    # Place Name input placed first so input can be geocoded immediately
+    place_name = st.text_input(
+        "Place Name*",
+        value=default_name,
+        placeholder="e.g., Click on the map to select or type manually"
+    )
+
+    # Look up location & province before rendering the Province widget
+    manual_lat, manual_lon, detected_province = None, None, ""
+    if place_name.strip():
+        manual_lat, manual_lon, detected_province = geocode_place(place_name)
+        if detected_province and detected_province != "Unknown":
+            default_province = detected_province
+
+        if look_gps and manual_lat and manual_lon:
+            st.info(f"📍 Location Found: {detected_province} ({manual_lat:.4f}, {manual_lon:.4f})")
+
+    # Province selection uses the updated default_province value
     prov_index = 0
     if default_province in THAI_PROVINCES:
         prov_index = THAI_PROVINCES.index(default_province)
@@ -230,22 +238,6 @@ with col_left:
         province = st.selectbox("Province", THAI_PROVINCES, index=prov_index)
     else:
         province = st.text_input("Province", value=default_province, placeholder="e.g., Rayong, Pathum Thani")
-
-    # Place Name input placed second
-    place_name = st.text_input(
-        "Place Name*", 
-        value=default_name, 
-        placeholder="e.g., Click on the map to select or type manually"
-    )
-
-    # Automatically look up location & province when Look with GPS is active or place name is entered
-    manual_lat, manual_lon, detected_province = None, None, ""
-    if place_name.strip():
-        manual_lat, manual_lon, detected_province = geocode_place(place_name)
-        if detected_province and detected_province != "Unknown":
-            default_province = detected_province
-            if look_gps and manual_lat and manual_lon:
-                st.info(f"📍 Location Found: {detected_province} ({manual_lat:.4f}, {manual_lon:.4f})")
 
     # Geocode selected province in Manual Mode
     prov_lat, prov_lon = None, None
@@ -281,7 +273,7 @@ with col_left:
                 place_name, province, category, notes, num_people, companions,
                 lat=lat_to_save, lon=lon_to_save
             )
-
+            
             if lat and lon:
                 st.success(f"Logged '{place_name}' successfully!")
                 st.session_state.manual_lat = None
@@ -293,8 +285,9 @@ with col_left:
 with col_right:
     data = load_data()
     st.subheader("🗺️ Map View")
+    
     map_data = data.dropna(subset=["Latitude", "Longitude"])
-
+    
     if look_gps and manual_lat is not None and manual_lon is not None:
         center_lat, center_lon = manual_lat, manual_lon
         zoom_level = 13
@@ -368,9 +361,7 @@ with col_right:
         ).add_to(m)
 
     map_output = st_folium(
-        m, 
-        width="100%", 
-        height=400, 
+        m, width="100%", height=400,
         key=f"visited_map_{gps_mode}_{province}_{prov_lat}_{prov_lon}_{clicked_lat}_{clicked_lon}_{manual_lat}_{current_lat}"
     )
 
@@ -392,8 +383,9 @@ if not data.empty:
     m_col4.metric("Mapped Locations", unique_map_places["Place Name"].nunique() if not unique_map_places.empty else 0)
 
     COLUMN_ORDER = [
-        "No.", "Place Name", "Province", "Category", "Notes", "Last Visited", 
-        "Visit Count", "Number of People", "Companions", "Latitude", "Longitude"
+        "No.", "Place Name", "Province", "Category", "Notes",
+        "Last Visited", "Visit Count", "Number of People", "Companions",
+        "Latitude", "Longitude"
     ]
 
     col_sort_field, col_sort_dir = st.columns([2, 1])
@@ -434,7 +426,6 @@ if not data.empty:
             save_all_data(edited_df)
             st.success("Changes saved successfully!")
             st.rerun()
-
     with col_export:
         csv_data = edited_df.to_csv(index=False).encode('utf-8')
         st.download_button(
@@ -445,16 +436,14 @@ if not data.empty:
         )
 
     st.markdown("### 👥 View Visit Details & Companions")
-    
     view_mode = st.radio("Inspect visits by:", ["By Location", "By Province"], horizontal=True)
 
     if view_mode == "By Location":
         unique_places = sorted(edited_df["Place Name"].dropna().unique())
         selected_place = st.selectbox("Select a place to inspect visits:", unique_places)
-
+        
         if selected_place:
             place_visits = edited_df[edited_df["Place Name"] == selected_place].sort_values(by="Last Visited", ascending=False)
-            
             if len(place_visits) > 1:
                 visit_options = [
                     f"Visit #{row['Visit Count']} - {row['Last Visited']} ({row['Number of People']} people: {row['Companions']})"
@@ -472,14 +461,12 @@ if not data.empty:
                 f"👥 **Group Size:** {chosen_visit['Number of People']} person(s) (**Companions:** {chosen_visit['Companions']})\n\n"
                 f"📝 **Notes:** {chosen_visit['Notes'] if pd.notna(chosen_visit['Notes']) and chosen_visit['Notes'] else 'No notes added'}"
             )
-
     else:
         unique_provinces = sorted(edited_df["Province"].dropna().unique())
         selected_province = st.selectbox("Select a province to inspect visits:", unique_provinces)
-
+        
         if selected_province:
             prov_visits = edited_df[edited_df["Province"] == selected_province].sort_values(by="Last Visited", ascending=False)
-            
             st.success(f"Found **{len(prov_visits)}** visit record(s) in **{selected_province}** across **{prov_visits['Place Name'].nunique()}** unique place(s).")
             
             visit_options = [
