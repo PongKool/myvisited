@@ -155,7 +155,7 @@ with col_left:
             value=autofilled_province, 
             placeholder="e.g., Rayong, Pathum Thani"
         )
-        category = st.selectbox("Category", ["Beach", "Restaurant", "Park", "Museum", "Cafe", "Other"])
+        category = st.selectbox("Category", ["Beach", "Building", "Restaurant", "Park", "Museum", "Cafe", "Other"])
         
         col_num, col_comp = st.columns([1, 2])
         with col_num:
@@ -266,7 +266,7 @@ if not data.empty:
     column_config = {
         "Category": st.column_config.SelectboxColumn(
             "Category",
-            options=["Beach", "Restaurant", "Park", "Museum", "Cafe", "Other"],
+            options=["Beach", "Building", "Restaurant", "Park", "Museum", "Cafe", "Other"],
             required=True
         ),
         "Visit Count": st.column_config.NumberColumn("Visit Count", min_value=1, step=1),
@@ -316,7 +316,6 @@ if not data.empty:
             ]
             selected_visit_label = st.selectbox("Select specific visit record:", visit_options)
             
-            # Find chosen visit row
             selected_index = visit_options.index(selected_visit_label)
             chosen_visit = place_visits.iloc[selected_index]
         else:
