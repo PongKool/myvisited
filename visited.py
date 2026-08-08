@@ -79,7 +79,7 @@ def load_data():
         if "Companions" not in df.columns:
             df["Companions"] = "Solo"
         if "Rating" not in df.columns:
-            df["Rating"] = 5.0
+            df["Rating"] = 5
         if "Province" not in df.columns:
             df["Province"] = "Unknown"
         else:
@@ -273,7 +273,7 @@ with col_left:
         prov_lat, prov_lon, _ = geocode_place(f"จังหวัด {province} Thailand")
 
     category = st.selectbox("Category", CATEGORIES)
-    rating = st.slider("Rating Score (0 - 10)", min_value=0.0, max_value=10.0, value=5.0, step=0.5)
+    rating = st.slider("Rating Score (0 - 10)", min_value=0.0, max_value=10, value=5, step=1)
 
     col_num, col_comp = st.columns([1, 2])
     with col_num:
@@ -438,7 +438,7 @@ sorted_data = data.sort_values(by=sort_by_col, ascending=sort_ascending)
 
 column_config = {
     "No.": st.column_config.NumberColumn("No.", min_value=1, step=1, disabled=True),
-    "Rating": st.column_config.NumberColumn("Rating", min_value=0.0, max_value=10.0, step=0.5, format="%.1f"),
+    "Rating": st.column_config.NumberColumn("Rating", min_value=0, max_value=10, step=1, format="%d"),
     "Notes": st.column_config.TextColumn("Notes"),
     "Category": st.column_config.SelectboxColumn("Category", options=CATEGORIES, required=True),
     "Visit Count": st.column_config.NumberColumn("Visit Count", min_value=1, step=1),
