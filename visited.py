@@ -397,11 +397,14 @@ with col_left:
     if detected_province and detected_province != "Unknown":
       default_province = detected_province
 
-  if look_gps and manual_lat and manual_lon:
-    st.info(
-        f"📍 Location Found: {detected_province} ({manual_lat:.4f},"
-        f" {manual_lon:.4f})"
-    )
+  if look_gps:
+    if manual_lat and manual_lon:
+      st.info(
+          f"📍 Location Found: {detected_province} ({manual_lat:.4f},"
+          f" {manual_lon:.4f})"
+      )
+    elif place_name.strip():
+      st.warning(f"⚠️ Could not geocode '{place_name}'. Try a more specific place name.")
 
   prov_index = 0
   if default_province in THAI_PROVINCES:
@@ -475,7 +478,7 @@ with col_left:
       elif is_manual and prov_lat and prov_lon:
         lat_to_save, lon_to_save = prov_lat, prov_lon
       else:
-        lat_to_save, lon_to_save = None, None
+        lat_to_save, lon_to_save = manual_lat, manual_lon
 
       lat, lon = save_entry(
           place_name,
