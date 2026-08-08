@@ -273,7 +273,7 @@ with col_left:
         prov_lat, prov_lon, _ = geocode_place(f"จังหวัด {province} Thailand")
 
     category = st.selectbox("Category", CATEGORIES)
-    rating = st.slider("Rating Score (0 - 10)", min_value=0.0, max_value=10, value=5, step=1)
+    rating = st.slider("Rating Score (0 - 10)", min_value=0, max_value=10, value=5, step=1)
 
     col_num, col_comp = st.columns([1, 2])
     with col_num:
