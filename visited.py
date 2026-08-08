@@ -229,8 +229,8 @@ with col_left:
 
     gps_mode = st.radio(
         "GPS Mode:",
-        options=["Manual", "Use current GPS", "Look with GPS"],
-        index=1 if current_lat else 0,
+        options=["Use current GPS", "Look with GPS", "Manual"],
+        index=0 if current_lat else 2,
         horizontal=True,
         help="Manual: Click on map or select province to locate. Use current GPS: Auto-detect location. Look with GPS: Search coordinates for typed place name."
     )
