@@ -31,14 +31,17 @@ CATEGORIES = [
     "Park", "Mountain", "Museum", "Cafe", "Temple", "Theater", "Other"
 ]
 
+
 def get_thailand_time_str():
     return datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %I:%M:%S %p")
+
 
 def clean_province_name(province_str):
     if not province_str or pd.isna(province_str):
         return "Unknown"
     cleaned = str(province_str).replace("จังหวัด", "").strip()
     return cleaned if cleaned else "Unknown"
+
 
 def assign_location_numbers(df):
     group_cols = ["Place Name", "Province", "Category", "Latitude", "Longitude"]
@@ -48,13 +51,13 @@ def assign_location_numbers(df):
         df["No."] = range(1, len(df) + 1)
     return df
 
+
 def load_data():
     if os.path.exists(DATA_FILE):
         df = pd.read_csv(DATA_FILE)
-        
         if "Date Visited" in df.columns and "Last Visited" not in df.columns:
             df.rename(columns={"Date Visited": "Last Visited"}, inplace=True)
-            
+
         if "Last Visited" not in df.columns:
             df["Last Visited"] = get_thailand_time_str()
         else:
@@ -70,8 +73,9 @@ def load_data():
                     return bkk_dt.strftime("%Y-%m-%d %I:%M:%S %p")
                 except Exception:
                     return val_str
+
             df["Last Visited"] = df["Last Visited"].apply(fix_timestamp)
-            
+
         if "Visit Count" not in df.columns:
             df["Visit Count"] = 1
         if "Number of People" not in df.columns:
@@ -84,24 +88,27 @@ def load_data():
             df["Province"] = "Unknown"
         else:
             df["Province"] = df["Province"].apply(clean_province_name)
+
         if "Notes" not in df.columns:
             df["Notes"] = ""
         else:
             df["Notes"] = df["Notes"].fillna("")
-            
+
         df = assign_location_numbers(df)
         return df
     else:
         return pd.DataFrame(columns=[
-            "No.", "Place Name", "Province", "Category", "Rating", "Notes", 
-            "Last Visited", "Visit Count", "Number of People", "Companions", 
+            "No.", "Place Name", "Province", "Category", "Rating", "Notes",
+            "Last Visited", "Visit Count", "Number of People", "Companions",
             "Latitude", "Longitude"
         ])
+
 
 def save_all_data(df):
     df_to_save = df.copy()
     df_to_save = assign_location_numbers(df_to_save)
     df_to_save.to_csv(DATA_FILE, index=False)
+
 
 @st.cache_data(ttl=86400)
 def geocode_place(place_name):
@@ -118,6 +125,7 @@ def geocode_place(place_name):
         pass
     return None, None, "Unknown"
 
+
 @st.cache_data(ttl=86400)
 def reverse_geocode(lat, lon):
     if lat is None or lon is None:
@@ -128,15 +136,15 @@ def reverse_geocode(lat, lon):
         if location and location.raw.get("address"):
             address = location.raw["address"]
             name = (
-                address.get("facility") or 
-                address.get("office") or 
-                address.get("amenity") or 
-                address.get("tourism") or 
-                address.get("building") or 
-                address.get("leisure") or 
-                address.get("shop") or 
-                address.get("road") or 
-                location.address.split(",")[0]
+                address.get("facility")
+                or address.get("office")
+                or address.get("amenity")
+                or address.get("tourism")
+                or address.get("building")
+                or address.get("leisure")
+                or address.get("shop")
+                or address.get("road")
+                or location.address.split(",")[0]
             )
             raw_province = address.get("state") or address.get("province") or "Unknown"
             return name, clean_province_name(raw_province)
@@ -144,15 +152,16 @@ def reverse_geocode(lat, lon):
         pass
     return "", "Unknown"
 
-def save_entry(place_name, province, category, rating, notes, num_people, companions, lat=None, lon=None):
+
+def save_entry(place_name, province, category, rating, notes, num_people, companions, visit_datetime_str=None, lat=None, lon=None):
     df = load_data()
     clean_name = place_name.strip()
     clean_province = clean_province_name(province)
-    now_str = get_thailand_time_str()
+    now_str = visit_datetime_str if visit_datetime_str else get_thailand_time_str()
     companions_str = companions.strip() if companions.strip() else "Solo"
-    
+
     existing_match = df[df["Place Name"].str.strip().str.lower() == clean_name.lower()]
-    
+
     if lat is None or lon is None:
         if not existing_match.empty:
             lat = existing_match.iloc[0]["Latitude"]
@@ -163,9 +172,9 @@ def save_entry(place_name, province, category, rating, notes, num_people, compan
             lat, lon, detected_province = geocode_place(clean_name)
             if clean_province == "Unknown" and detected_province != "Unknown":
                 clean_province = detected_province
-                
+
     visit_number = len(existing_match) + 1
-    
+
     new_entry = pd.DataFrame([{
         "No.": 1,
         "Place Name": clean_name,
@@ -180,10 +189,11 @@ def save_entry(place_name, province, category, rating, notes, num_people, compan
         "Latitude": lat,
         "Longitude": lon
     }])
-    
+
     df = pd.concat([df, new_entry], ignore_index=True)
     save_all_data(df)
     return lat, lon
+
 
 # Page Config
 st.set_page_config(page_title="Visited Places Log", page_icon="📍", layout="wide")
@@ -201,16 +211,16 @@ col_left, col_right = st.columns([1, 2])
 # Session state initialization for manual map pin picking
 if "manual_lat" not in st.session_state:
     st.session_state.manual_lat = None
-st.session_state.manual_lon = None
+st.session_state.manual_lon = st.session_state.get("manual_lon", None)
 
 with col_left:
     st.subheader("Add / Log a Place")
-    
+
     loc = get_geolocation()
     current_lat, current_lon = None, None
     autofilled_name = ""
     autofilled_province = ""
-    
+
     if loc and 'coords' in loc:
         current_lat = loc['coords']['latitude']
         current_lon = loc['coords']['longitude']
@@ -224,7 +234,7 @@ with col_left:
         horizontal=True,
         help="Manual: Click on map or select province to locate. Use current GPS: Auto-detect location. Look with GPS: Search coordinates for typed place name."
     )
-    
+
     use_gps = (gps_mode == "Use current GPS")
     look_gps = (gps_mode == "Look with GPS")
     is_manual = (gps_mode == "Manual")
@@ -245,8 +255,8 @@ with col_left:
         st.info(f"📍 Location Picked on Map: ({clicked_lat:.4f}, {clicked_lon:.4f})")
 
     place_name = st.text_input(
-        "Place Name*", 
-        value=default_name, 
+        "Place Name*",
+        value=default_name,
         placeholder="e.g., Click on the map to select or type manually"
     )
 
@@ -275,6 +285,22 @@ with col_left:
     category = st.selectbox("Category", CATEGORIES)
     rating = st.slider("Rating Score (0 - 10)", min_value=0, max_value=10, value=5, step=1)
 
+    # --- Date & Time Handling ---
+    now_bkk = datetime.now(ZoneInfo("Asia/Bangkok"))
+
+    if use_gps:
+        visit_date = now_bkk.date()
+        visit_time = now_bkk.time()
+        st.caption(f"🗓️ **Visit Date & Time:** Auto-set to current time ({now_bkk.strftime('%Y-%m-%d %I:%M:%S %p')})")
+    else:
+        col_date, col_time = st.columns(2)
+        with col_date:
+            visit_date = st.date_input("Visit Date", value=now_bkk.date())
+        with col_time:
+            visit_time = st.time_input("Visit Time", value=now_bkk.time())
+
+    selected_datetime_str = datetime.combine(visit_date, visit_time).strftime("%Y-%m-%d %I:%M:%S %p")
+
     col_num, col_comp = st.columns([1, 2])
     with col_num:
         num_people = st.number_input("Number of People", min_value=1, value=1, step=1)
@@ -299,10 +325,18 @@ with col_left:
                 lat_to_save, lon_to_save = None, None
 
             lat, lon = save_entry(
-                place_name, province, category, rating, notes, num_people, companions, 
-                lat=lat_to_save, lon=lon_to_save
+                place_name,
+                province,
+                category,
+                rating,
+                notes,
+                num_people,
+                companions,
+                visit_datetime_str=selected_datetime_str,
+                lat=lat_to_save,
+                lon=lon_to_save
             )
-            
+
             if lat and lon:
                 st.session_state.toast_msg = {
                     "text": f"📍 Logged '{place_name}' successfully!",
@@ -321,9 +355,9 @@ with col_left:
 with col_right:
     data = load_data()
     st.subheader("🗺️ Map View")
-    
+
     map_data = data.dropna(subset=["Latitude", "Longitude"])
-    
+
     if look_gps and manual_lat is not None and manual_lon is not None:
         center_lat, center_lon = manual_lat, manual_lon
         zoom_level = 13
@@ -399,9 +433,9 @@ with col_right:
         ).add_to(m)
 
     map_output = st_folium(
-        m, 
-        width="100%", 
-        height=400, 
+        m,
+        width="100%",
+        height=400,
         key=f"visited_map_{gps_mode}_{province}_{prov_lat}_{prov_lon}_{clicked_lat}_{clicked_lon}_{manual_lat}_{current_lat}"
     )
 
@@ -423,8 +457,8 @@ if not data.empty:
     m_col4.metric("Mapped Locations", unique_map_places["Place Name"].nunique() if not unique_map_places.empty else 0)
 
 COLUMN_ORDER = [
-    "No.", "Place Name", "Province", "Category", "Rating", "Notes", 
-    "Last Visited", "Visit Count", "Number of People", "Companions", 
+    "No.", "Place Name", "Province", "Category", "Rating", "Notes",
+    "Last Visited", "Visit Count", "Number of People", "Companions",
     "Latitude", "Longitude"
 ]
 
@@ -461,10 +495,7 @@ col_save, col_export = st.columns([1, 3])
 with col_save:
     if st.button("💾 Save Changes", type="primary"):
         save_all_data(edited_df)
-        st.session_state.toast_msg = {
-            "text": "Changes saved successfully!",
-            "icon": "💾"
-        }
+        st.session_state.toast_msg = {"text": "Changes saved successfully!", "icon": "💾"}
         st.rerun()
 
 with col_export:
@@ -482,7 +513,6 @@ view_mode = st.radio("Inspect visits by:", ["By Location", "By Province", "By Ra
 if view_mode == "By Location":
     unique_places = sorted(edited_df["Place Name"].dropna().unique())
     selected_place = st.selectbox("Select a place to inspect visits:", unique_places)
-    
     if selected_place:
         place_visits = edited_df[edited_df["Place Name"] == selected_place].sort_values(by="Last Visited", ascending=False)
         if len(place_visits) > 1:
@@ -495,7 +525,7 @@ if view_mode == "By Location":
             chosen_visit = place_visits.iloc[selected_index]
         else:
             chosen_visit = place_visits.iloc[0]
-            
+
         st.info(
             f"📍 **{chosen_visit['Place Name']}** ({chosen_visit['Province']})\n\n"
             f"⭐ **Rating:** {chosen_visit['Rating']} / 10\n\n"
@@ -507,11 +537,9 @@ if view_mode == "By Location":
 elif view_mode == "By Province":
     unique_provinces = sorted(edited_df["Province"].dropna().unique())
     selected_province = st.selectbox("Select a province to inspect visits:", unique_provinces)
-    
     if selected_province:
         prov_visits = edited_df[edited_df["Province"] == selected_province].sort_values(by="Last Visited", ascending=False)
         st.success(f"Found **{len(prov_visits)}** visit record(s) in **{selected_province}** across **{prov_visits['Place Name'].nunique()}** unique place(s).")
-        
         visit_options = [
             f"{row['Place Name']} - Visit #{row['Visit Count']} on {row['Last Visited']} (Rating: {row['Rating']}/10, {row['Number of People']} people: {row['Companions']})"
             for _, row in prov_visits.iterrows()
@@ -519,7 +547,7 @@ elif view_mode == "By Province":
         selected_visit_label = st.selectbox("Select specific visit record in this province:", visit_options)
         selected_index = visit_options.index(selected_visit_label)
         chosen_visit = prov_visits.iloc[selected_index]
-        
+
         st.info(
             f"📍 **{chosen_visit['Place Name']}** ({chosen_visit['Province']})\n\n"
             f"🏷️ **Category:** {chosen_visit['Category']}\n\n"
@@ -532,11 +560,9 @@ elif view_mode == "By Province":
 else:  # By Rating Score
     unique_ratings = sorted(edited_df["Rating"].dropna().unique(), reverse=True)
     selected_rating = st.selectbox("Select a rating score to inspect visits:", unique_ratings, format_func=lambda r: f"⭐ {r} / 10")
-    
     if selected_rating is not None:
         score_visits = edited_df[edited_df["Rating"] == selected_rating].sort_values(by="Last Visited", ascending=False)
         st.success(f"Found **{len(score_visits)}** visit record(s) rated **{selected_rating}/10** across **{score_visits['Place Name'].nunique()}** place(s).")
-        
         visit_options = [
             f"{row['Place Name']} ({row['Province']}) - Visit #{row['Visit Count']} on {row['Last Visited']} ({row['Number of People']} people: {row['Companions']})"
             for _, row in score_visits.iterrows()
@@ -544,7 +570,7 @@ else:  # By Rating Score
         selected_visit_label = st.selectbox("Select specific visit record with this score:", visit_options)
         selected_index = visit_options.index(selected_visit_label)
         chosen_visit = score_visits.iloc[selected_index]
-        
+
         st.info(
             f"📍 **{chosen_visit['Place Name']}** ({chosen_visit['Province']})\n\n"
             f"🏷️ **Category:** {chosen_visit['Category']}\n\n"
