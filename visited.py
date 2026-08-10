@@ -43,7 +43,8 @@ def clean_province_name(province_str):
 def assign_location_numbers(df):
     group_cols = ["Place Name", "Province", "Category", "Latitude", "Longitude"]
     if all(col in df.columns for col in group_cols):
-        df["No."] = df.groupby(group_cols, sort=False).ngroup() + 1
+        # dropna=False ensures entries with NaN coordinates get grouped/numbered
+        df["No."] = df.groupby(group_cols, sort=False, dropna=False).ngroup() + 1
     else:
         df["No."] = range(1, len(df) + 1)
     return df
