@@ -334,7 +334,8 @@ with col_left:
                 companions,
                 visit_datetime_str=selected_datetime_str,
                 lat=lat_to_save,
-                lon=lon_to_save
+                lon=lon_to_save,
+                auto_geocode=not is_manual
             )
 
             if lat and lon:
