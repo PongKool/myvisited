@@ -27,7 +27,7 @@ THAI_PROVINCES = [
 ]
 
 CATEGORIES = [
-    "Beach", "Building", "Forest", "Historic", "Island", "Restaurant",
+    "Accomodation", "Beach", "Building", "Forest", "Historic", "Island", "Restaurant",
     "Park", "Mountain", "Museum", "Cafe", "Temple", "Theater", "Other"
 ]
 
