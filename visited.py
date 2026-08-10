@@ -254,10 +254,6 @@ with col_left:
     else:
         province = st.text_input("Province", value=default_province, placeholder="e.g., Rayong, Pathum Thani")
 
-    prov_lat, prov_lon = None, None
-    if is_manual and province and province != "Unknown":
-        prov_lat, prov_lon, _ = geocode_place(f"จังหวัด {province} Thailand")
-
     category = st.selectbox("Category", CATEGORIES)
     rating = st.slider("Rating Score (0 - 10)", min_value=0, max_value=10, value=5, step=1)
 
@@ -294,8 +290,6 @@ with col_left:
                 lat_to_save, lon_to_save = manual_lat, manual_lon
             elif is_manual and clicked_lat and clicked_lon:
                 lat_to_save, lon_to_save = clicked_lat, clicked_lon
-            elif is_manual and prov_lat and prov_lon:
-                lat_to_save, lon_to_save = prov_lat, prov_lon
             else:
                 lat_to_save, lon_to_save = None, None
 
@@ -337,9 +331,6 @@ with col_right:
     elif is_manual and clicked_lat is not None and clicked_lon is not None:
         center_lat, center_lon = clicked_lat, clicked_lon
         zoom_level = 13
-    elif is_manual and prov_lat is not None and prov_lon is not None:
-        center_lat, center_lon = prov_lat, prov_lon
-        zoom_level = 8
     elif not map_data.empty:
         center_lat = map_data["Latitude"].mean()
         center_lon = map_data["Longitude"].mean()
@@ -406,7 +397,7 @@ with col_right:
         m, 
         width="100%", 
         height=400, 
-        key=f"visited_map_{gps_mode}_{province}_{prov_lat}_{prov_lon}_{clicked_lat}_{clicked_lon}_{manual_lat}_{current_lat}"
+        key=f"visited_map_{gps_mode}_{province}_{clicked_lat}_{clicked_lon}_{manual_lat}_{current_lat}"
     )
 
     if is_manual and map_output and map_output.get("last_clicked"):
