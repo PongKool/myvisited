@@ -2,7 +2,7 @@ No.,Place Name,Province,Category,Rating,Notes,Last Visited,Visit Count,Number of
 1,พระนครคีรี,เพชรบุรี,Historic,7,Good view from the top,2026-01-04 01:22:00 PM,1,3,"Dad, Aied",13.1088669,99.9377502
 2,หาดปึกเตียน,เพชรบุรี,Beach,5,Not so good beach. Private beach. Dirty and can't swim,2026-01-04 01:26:00 PM,1,3,"Dad, Aied",,
 3,หาดเจ้าสำราญ,เพชรบุรี,Beach,6,OK beach.,2024-01-28 01:37:00 PM,1,3,"Dad, Aied",13.005913,100.0636272
-4,แหลมผักเบี้ย,เพชรบุรี,Other,7,"Great place to visit. Forest and sea, and something else.",2024-01-28 01:41:00 PM,1,3,"Dad, Aied",,
+4,แหลมผักเบี้ย,เพชรบุรี,Others,7,"Great place to visit. Forest and sea, and something else.",2024-01-28 01:41:00 PM,1,3,"Dad, Aied",,
 5,วัดนอกปากทะเล,เพชรบุรี,Temple,6,Nice temple with a unique building of ship shape.,2024-01-28 02:45:00 PM,1,3,"Dad, Aied",13.1499315,100.053054
 6,วัดเพชรสุวรรณ วิหารเจ้าแม่กวนอิม,เพชรบุรี,Temple,7,Beautiful Chinese temple,2024-01-28 02:49:00 PM,1,3,"Dad, Aied",,
 7,วัดเจดีย์หอย,ปทุมธานี,Temple,5,so so temple,2023-04-15 02:53:00 PM,1,2,"Dad, Aied",,
@@ -12,12 +12,12 @@ No.,Place Name,Province,Category,Rating,Notes,Last Visited,Visit Count,Number of
 11,วัดเสด็จ ปทุมธานี,ปทุมธานี,Temple,7,good temple with good view river,2023-04-16 03:03:00 PM,1,2,"Dad, Aied",14.0007892,100.569968
 12,วัดกลางคลองสี่,ปทุมธานี,Temple,6,good temple,2019-07-17 03:10:00 PM,1,1,Aied,13.9602687,100.688328
 13,วัดบางนา สามโคก,ปทุมธานี,Temple,6,good temple with a river,2023-04-14 03:13:00 PM,1,2,Aied,,
-14,อุทยานหินเขางู,ราชบุรี,Other,6,Hot,2025-07-27 03:16:00 PM,1,3,"Dad, Aied",,
-15,ถ้ำเขาบิน,ราชบุรี,Other,6,Nothing special,2025-07-27 03:24:00 PM,1,3,"Dad, Aied",13.5923603,99.6668312
-16,น้ำตกเขาชะเมา,ระยอง,Mountain,8,Great waterfall,2023-07-30 03:29:00 PM,1,3,"Dad, Aied",12.9147939,101.735586
-17,น้ำตกพลิ้ว,จันทบุรี,Mountain,8,Great waterfall,2023-07-30 03:31:00 PM,1,3,"Dad, Aied",12.5296913,102.1840597
-18,น้ำตกตรอกนอง,จันทบุรี,Forest,8,Great waterfall,2023-07-31 06:17:00 PM,1,3,"Dad, Aied",12.5435307,102.2385164
+14,อุทยานหินเขางู,ราชบุรี,Others,6,Hot,2025-07-27 03:16:00 PM,1,3,"Dad, Aied",,
+15,ถ้ำเขาบิน,ราชบุรี,Mountain,6,Nothing special,2025-07-27 03:24:00 PM,1,3,"Dad, Aied",13.5923603,99.6668312
+16,น้ำตกเขาชะเมา,ระยอง,Waterfall,8,Great waterfall,2023-07-30 03:29:00 PM,1,3,"Dad, Aied",12.9147939,101.735586
+17,น้ำตกพลิ้ว,จันทบุรี,Waterfall,8,Great waterfall,2023-07-30 03:31:00 PM,1,3,"Dad, Aied",12.5296913,102.1840597
+18,น้ำตกตรอกนอง,จันทบุรี,Waterfall,8,Great waterfall,2023-07-31 06:17:00 PM,1,3,"Dad, Aied",12.5435307,102.2385164
 19,หาดบางแสน,ชลบุรี,Beach,5,ok beach,2023-01-22 06:21:00 PM,1,3,"Dad, Aied",13.288354,100.9110831
 20,เกาะสีชัง,ชลบุรี,Island,6,ok island but the travel by boat has a great view.,2023-01-22 06:23:00 PM,1,3,"Dad, Aied",13.152512,100.8093543
-21,เกาะลอย ชลบุรี,ชลบุรี,Other,5,just a port,2023-01-22 06:26:00 PM,1,3,"Dad, Aied",,
+21,เกาะลอย ชลบุรี,ชลบุรี,Others,5,just a port,2023-01-22 06:26:00 PM,1,3,"Dad, Aied",,
 22,วัดคฤหบดี,กรุงเทพมหานคร,Temple,6,good temple,2023-05-04 06:31:00 PM,1,3,"P'Pen, Aied",,
