@@ -500,7 +500,7 @@ if not data.empty:
         )
 
     st.markdown("### 👥 View Visit Details & Companions")
-    view_mode = st.radio("Inspect visits by:", ["By Location", "By Province", "By Rating Score"], horizontal=True)
+    view_mode = st.radio("Inspect visits by:", ["By Location", "By Province", "By Category", "By Rating Score"], horizontal=True)
 
     if view_mode == "By Location":
         unique_places = sorted(edited_df["Place Name"].dropna().unique())
@@ -549,6 +549,32 @@ if not data.empty:
                 f"📝 **Notes:** {chosen_visit['Notes'] if pd.notna(chosen_visit['Notes']) and chosen_visit['Notes'] else 'No notes added'}"
             )
 
+    elif view_mode == "By Category":
+    unique_categories = sorted(edited_df["Category"].dropna().unique())
+    selected_category = st.selectbox("Select a category to inspect visits:", unique_categories)
+    
+    if selected_category:
+        cat_visits = edited_df[edited_df["Category"] == selected_category].sort_values(by="Last Visited", ascending=False)
+        st.success(f"Found **{len(cat_visits)}** visit record(s) in category **{selected_category}** across **{cat_visits['Place Name'].nunique()}** unique place(s).")
+        
+        visit_options = [
+            f"{row['Place Name']} ({row['Province']}) - Visit #{row['Visit Count']} on {row['Last Visited']} (Rating: {row['Rating']}/10, {row['Number of People']} people: {row['Companions']})"
+            for _, row in cat_visits.iterrows()
+        ]
+        
+        selected_visit_label = st.selectbox("Select specific visit record in this category:", visit_options)
+        selected_index = visit_options.index(selected_visit_label)
+        chosen_visit = cat_visits.iloc[selected_index]
+        
+        st.info(
+            f"📍 **{chosen_visit['Place Name']}** ({chosen_visit['Province']})\n\n"
+            f"🏷️ **Category:** {chosen_visit['Category']}\n\n"
+            f"⭐ **Rating:** {chosen_visit['Rating']} / 10\n\n"
+            f"🗓️ **Date:** {chosen_visit['Last Visited']}\n\n"
+            f"👥 **Group Size:** {chosen_visit['Number of People']} person(s) (**Companions:** {chosen_visit['Companions']})\n\n"
+            f"📝 **Notes:** {chosen_visit['Notes'] if pd.notna(chosen_visit['Notes']) and chosen_visit['Notes'] else 'No notes added'}"
+        )
+    
     else:  # By Rating Score
         unique_ratings = sorted(edited_df["Rating"].dropna().unique(), reverse=True)
         selected_rating = st.selectbox("Select a rating score to inspect visits:", unique_ratings, format_func=lambda r: f"⭐ {r} / 10")
