@@ -1,3 +1,4 @@
+import io
 import os
 import pandas as pd
 import streamlit as st
@@ -7,9 +8,15 @@ from geopy.geocoders import Nominatim
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from streamlit_js_eval import get_geolocation
+from github import Github, GithubException
+
+# --- GitHub Storage Configuration ---
+GITHUB_TOKEN = st.secrets.get("github", {}).get("token") or os.getenv("GITHUB_TOKEN")
+REPO_NAME = st.secrets.get("github", {}).get("repo", "PongKool/myvisited")
+BRANCH = st.secrets.get("github", {}).get("branch", "main")
+GITHUB_FILE_PATH = st.secrets.get("github", {}).get("file_path", "visited_places.csv")
 
 DATA_FILE = "visited_places.csv"
-
 THAI_PROVINCES = [
     "Unknown", "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร",
     "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร",
@@ -25,10 +32,15 @@ THAI_PROVINCES = [
     "หนองคาย", "หนองบัวลำภู", "อ่างทอง", "อำนาจเจริญ", "อุดรธานี", "อุตรดิตถ์",
     "อุทัยธานี", "อุบลราชธานี"
 ]
-
 CATEGORIES = [
-    "Accomodation", "Beach", "Building", "Forest", "Historic", "Island", "Restaurant",
-    "Park", "Mountain", "Museum", "Cafe", "Temple", "Theater", "Other"
+    "Accomodation", "Beach", "Building", "Forest", "Historic", "Island",
+    "Restaurant", "Park", "Mountain", "Museum", "Cafe", "Temple", "Theater", "Other"
+]
+
+EMPTY_COLUMNS = [
+    "No.", "Place Name", "Province", "Category", "Rating", "Notes",
+    "Last Visited", "Visit Count", "Number of People", "Companions",
+    "Latitude", "Longitude"
 ]
 
 def get_thailand_time_str():
@@ -43,63 +55,83 @@ def clean_province_name(province_str):
 def assign_location_numbers(df):
     group_cols = ["Place Name", "Province", "Category", "Latitude", "Longitude"]
     if all(col in df.columns for col in group_cols):
-        # dropna=False ensures entries with NaN coordinates get grouped/numbered
         df["No."] = df.groupby(group_cols, sort=False, dropna=False).ngroup() + 1
     else:
         df["No."] = range(1, len(df) + 1)
     return df
 
+def get_github_repo():
+    if not GITHUB_TOKEN:
+        return None
+    try:
+        g = Github(GITHUB_TOKEN)
+        return g.get_repo(REPO_NAME)
+    except Exception:
+        return None
+
 def load_data():
+    repo = get_github_repo()
+    if repo:
+        try:
+            file_content = repo.get_contents(GITHUB_FILE_PATH, ref=BRANCH)
+            csv_raw = file_content.decoded_content.decode("utf-8")
+            df = pd.read_csv(io.StringIO(csv_raw))
+            
+            if "Date Visited" in df.columns and "Last Visited" not in df.columns:
+                df.rename(columns={"Date Visited": "Last Visited"}, inplace=True)
+            if "Last Visited" not in df.columns:
+                df["Last Visited"] = get_thailand_time_str()
+            if "Province" in df.columns:
+                df["Province"] = df["Province"].apply(clean_province_name)
+            if "Notes" in df.columns:
+                df["Notes"] = df["Notes"].fillna("")
+                
+            return assign_location_numbers(df)
+        except GithubException as e:
+            if e.status != 404:
+                st.warning(f"Could not load data from GitHub: {e}")
+        except Exception as e:
+            st.warning(f"Error parsing data: {e}")
+
+    # Fallback to local file if exists
     if os.path.exists(DATA_FILE):
         df = pd.read_csv(DATA_FILE)
-        if "Date Visited" in df.columns and "Last Visited" not in df.columns:
-            df.rename(columns={"Date Visited": "Last Visited"}, inplace=True)
-        if "Last Visited" not in df.columns:
-            df["Last Visited"] = get_thailand_time_str()
-        else:
-            def fix_timestamp(val):
-                if pd.isna(val):
-                    return val
-                val_str = str(val)
-                for tz_str in ["+07:00", "+0700", "+07", "ICT", "UTC"]:
-                    val_str = val_str.replace(tz_str, "").strip()
-                try:
-                    utc_dt = datetime.strptime(val_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=ZoneInfo("UTC"))
-                    bkk_dt = utc_dt.astimezone(ZoneInfo("Asia/Bangkok"))
-                    return bkk_dt.strftime("%Y-%m-%d %I:%M:%S %p")
-                except Exception:
-                    return val_str
-            df["Last Visited"] = df["Last Visited"].apply(fix_timestamp)
-
-        if "Visit Count" not in df.columns:
-            df["Visit Count"] = 1
-        if "Number of People" not in df.columns:
-            df["Number of People"] = 1
-        if "Companions" not in df.columns:
-            df["Companions"] = "Solo"
-        if "Rating" not in df.columns:
-            df["Rating"] = 5
-        if "Province" not in df.columns:
-            df["Province"] = "Unknown"
-        else:
-            df["Province"] = df["Province"].apply(clean_province_name)
-        if "Notes" not in df.columns:
-            df["Notes"] = ""
-        else:
-            df["Notes"] = df["Notes"].fillna("")
-            
-        df = assign_location_numbers(df)
-        return df
-    else:
-        return pd.DataFrame(columns=[
-            "No.", "Place Name", "Province", "Category", "Rating", "Notes", 
-            "Last Visited", "Visit Count", "Number of People", "Companions", "Latitude", "Longitude"
-        ])
+        return assign_location_numbers(df)
+        
+    return pd.DataFrame(columns=EMPTY_COLUMNS)
 
 def save_all_data(df):
-    df_to_save = df.copy()
-    df_to_save = assign_location_numbers(df_to_save)
+    df_to_save = assign_location_numbers(df.copy())
+    csv_string = df_to_save.to_csv(index=False)
+    
+    # Save to local container
     df_to_save.to_csv(DATA_FILE, index=False)
+    
+    # Commit directly to GitHub repository
+    repo = get_github_repo()
+    if repo:
+        try:
+            try:
+                contents = repo.get_contents(GITHUB_FILE_PATH, ref=BRANCH)
+                repo.update_file(
+                    path=GITHUB_FILE_PATH,
+                    message=f"Update {GITHUB_FILE_PATH} from app",
+                    content=csv_string,
+                    sha=contents.sha,
+                    branch=BRANCH
+                )
+            except GithubException as e:
+                if e.status == 404:
+                    repo.create_file(
+                        path=GITHUB_FILE_PATH,
+                        message=f"Create {GITHUB_FILE_PATH} from app",
+                        content=csv_string,
+                        branch=BRANCH
+                    )
+                else:
+                    st.error(f"GitHub save failed: {e}")
+        except Exception as e:
+            st.error(f"GitHub sync error: {e}")
 
 @st.cache_data(ttl=86400)
 def geocode_place(place_name):
