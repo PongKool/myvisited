@@ -34,7 +34,7 @@ THAI_PROVINCES = [
 ]
 CATEGORIES = [
     "Accomodation", "Beach", "Building", "Forest", "Historic", "Island",
-    "Restaurant", "Park", "Mountain", "Museum", "Cafe", "Temple", "Theater", "Other"
+    "Restaurant", "Park", "Mountain", "Museum", "Cafe", "Waterfall", "Temple", "Theater", "Others"
 ]
 
 EMPTY_COLUMNS = [
